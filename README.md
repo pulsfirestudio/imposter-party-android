@@ -18,3 +18,4 @@ A local multiplayer party game built with React Native (Expo). Designed for 3–
 ```bash
 npm install
 npx expo start
+Last updated: 2026-02-27
