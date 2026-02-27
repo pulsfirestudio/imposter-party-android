@@ -264,15 +264,16 @@ export default function GameScreen({ navigation, route }) {
 
   // -------- RENDER BLOCKS --------
 
-  const renderRevealPhase = () => (
-    <View style={styles.phaseContainer}>
-      <Text style={styles.phaseTitle}>{t.revealPhase}</Text>
-      <Text style={styles.playerName}>{players[currentPlayerIndex]}</Text>
+const renderRevealPhase = () => (
+  <View style={styles.phaseContainer}>
+    <Text style={styles.phaseTitle}>{t.revealPhase}</Text>
+    <Text style={styles.playerName}>{players[currentPlayerIndex]}</Text>
 
-      {/* BIG HOLD-TO-REVEAL BUTTON */}
+    {/* Keep the reveal button fixed */}
+    <View style={styles.revealButtonWrapper}>
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
         <TouchableOpacity
-          style={[styles.revealButton, (isPassing) && { opacity: 0.7 }]}
+          style={[styles.revealButton, isPassing && { opacity: 0.7 }]}
           onPressIn={handleRevealPressIn}
           onPressOut={handleRevealPressOut}
           activeOpacity={0.95}
@@ -283,9 +284,11 @@ export default function GameScreen({ navigation, route }) {
           <Text style={styles.revealText}>{t.holdToSee}</Text>
         </TouchableOpacity>
       </Animated.View>
+    </View>
 
-      {/* ROLE CARD ONLY WHILE HOLDING */}
-      {isHoldingReveal && (
+    {/* Role card appears as an overlay BELOW the button, without moving it */}
+    {isHoldingReveal && (
+      <View style={styles.roleOverlay} pointerEvents="none">
         <View style={[styles.roleCard, isCurrentPlayerSpy ? styles.spyCard : styles.agentCard]}>
           <Text style={styles.roleTitle}>{t.yourRole}</Text>
           <Text style={[styles.roleText, isCurrentPlayerSpy ? styles.spyText : styles.agentText]}>
@@ -305,32 +308,26 @@ export default function GameScreen({ navigation, route }) {
             </View>
           )}
         </View>
-      )}
+      </View>
+    )}
 
-      {/* SMALLER PASS BUTTON UNDERNEATH */}
-      <TouchableOpacity
-        style={[
-          styles.passButton,
-          (!hasRevealedThisPlayer || isPassing || isHoldingReveal) && styles.passButtonDisabled
-        ]}
-        onPress={handlePassNext}
-        disabled={!hasRevealedThisPlayer || isPassing || isHoldingReveal}
-        activeOpacity={0.9}
-      >
-        <Ionicons name="swap-horizontal" size={20} color="#fff" />
-        <Text style={styles.passButtonText}>
-          {t.passTo} {players[(currentPlayerIndex + 1) % players.length]}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Optional timer badge (if you want reveal to be timed, this currently just shows your existing timer) */}
-      {timeLimit && (
-        <View style={styles.timerBadge}>
-          <Text style={styles.timerBadgeText}>{timeLeft}s</Text>
-        </View>
-      )}
-    </View>
-  );
+    {/* Pass button stays lower */}
+    <TouchableOpacity
+      style={[
+        styles.passButton,
+        (!hasRevealedThisPlayer || isPassing || isHoldingReveal) && styles.passButtonDisabled
+      ]}
+      onPress={handlePassNext}
+      disabled={!hasRevealedThisPlayer || isPassing || isHoldingReveal}
+      activeOpacity={0.9}
+    >
+      <Ionicons name="swap-horizontal" size={20} color="#fff" />
+      <Text style={styles.passButtonText}>
+        {t.passTo} {players[(currentPlayerIndex + 1) % players.length]}
+      </Text>
+    </TouchableOpacity>
+  </View>
+);
 
   const renderCluesPhase = () => (
     <View style={styles.phaseContainer}>
@@ -550,19 +547,35 @@ const getStyles = (colors, isDarkMode) => StyleSheet.create({
     letterSpacing: 1,
   },
 
+  revealButtonWrapper: {
+  zIndex: 2,
+},
+
+roleOverlay: {
+  position: 'absolute',
+  top: 40,            // ⬅️ move it up (was ~260)
+  left: 20,
+  right: 20,
+  alignItems: 'center',
+  zIndex: 3,           // ⬅️ above everything
+},
+
   // Pass button
-  passButton: {
-    marginTop: 18,
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 2,
-    borderColor: '#000',
-  },
+passButton: {
+  position: 'absolute',
+  bottom: 30,
+  left: 20,
+  right: 20,
+  backgroundColor: colors.primary,
+  paddingVertical: 14,
+  paddingHorizontal: 18,
+  borderRadius: 14,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+  borderWidth: 2,
+  borderColor: '#000',
+},
   passButtonDisabled: {
     opacity: 0.5,
   },
@@ -591,17 +604,18 @@ const getStyles = (colors, isDarkMode) => StyleSheet.create({
     borderColor: isDarkMode ? colors.error : '#000',
   },
   roleTitle: {
-    fontSize: 14,
+    fontSize: 11,
+    letterSpacing: 3,
     color: isDarkMode ? '#fff' : '#000',
     marginBottom: 10,
     letterSpacing: 3,
   },
-  roleText: {
-    fontSize: 42,
-    fontWeight: '900',
-    marginBottom: 18,
-    letterSpacing: 4,
-  },
+roleText: {
+  fontSize: 22,        // ⬅️ smaller
+  fontWeight: '800',
+  marginBottom: 8,
+  letterSpacing: 2,
+},
   agentText: {
     color: '#00ff88',
   },
@@ -624,11 +638,12 @@ const getStyles = (colors, isDarkMode) => StyleSheet.create({
     marginBottom: 5,
     letterSpacing: 2,
   },
-  wordText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: isDarkMode ? '#fff' : '#000',
-  },
+wordText: {
+  fontSize: 36,        // ⬅️ dominant
+  fontWeight: '900',
+  letterSpacing: 2,
+  color: isDarkMode ? '#fff' : '#000',
+},
 
   // Hint box
   hintBox: {
