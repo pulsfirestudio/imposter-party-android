@@ -1,5 +1,5 @@
-// CreateRoomScreen.js - Fixed light mode visibility
-import React, { useState } from 'react';
+// CreateRoomScreen.js - Updated: no default players, min-3 gating, better UX
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import AppButton from "../components/AppButton";
 
+/* -------------------- DATA (unchanged) -------------------- */
 const freeCategoriesEN = {
   'Random': ['random1', 'random2', 'random3', 'random4', 'random5', 'random6'],
   'Everyday Objects': [
@@ -102,7 +104,7 @@ const freeCategoriesEN = {
     { word: 'Grand', hint: 'fine' }, { word: 'Craic', hint: 'fun' },
     { word: 'Gas', hint: 'funny' }, { word: 'Deadly', hint: 'great' },
     { word: 'Savage', hint: 'excellent' }, { word: 'Sound', hint: 'kind' },
-    { word: 'Fair play', hint: 'respect' }, { word: 'What\'s the story', hint: 'greeting' },
+    { word: "Fair play", hint: "respect" }, { word: "What's the story", hint: "greeting" },
     { word: 'Yoke', hint: 'object' }, { word: 'Eejit', hint: 'fool' },
     { word: 'Gobshite', hint: 'idiot' }, { word: 'Gowl', hint: 'insult' },
     { word: 'Dose', hint: 'annoying' }, { word: 'Feck', hint: 'swear' },
@@ -223,7 +225,7 @@ const freeCategoriesLT = {
     { word: 'Grand', hint: 'gerai' }, { word: 'Craic', hint: 'linksmybės' },
     { word: 'Gas', hint: 'juokinga' }, { word: 'Deadly', hint: 'puiku' },
     { word: 'Savage', hint: 'nuostabu' }, { word: 'Sound', hint: 'malonus' },
-    { word: 'Fair play', hint: 'pagarbą' }, { word: 'What\'s the story', hint: 'sveikinimas' },
+    { word: 'Fair play', hint: 'pagarbą' }, { word: "What's the story", hint: 'sveikinimas' },
     { word: 'Yoke', hint: 'daiktas' }, { word: 'Eejit', hint: 'kvailys' },
     { word: 'Gobshite', hint: 'idiotas' }, { word: 'Gowl', hint: 'įžeidimas' },
     { word: 'Dose', hint: 'erzinantis' }, { word: 'Feck', hint: 'keiksmažodis' },
@@ -287,9 +289,12 @@ const translations = {
     unlockPremium: 'Unlock Premium',
     premiumTitle: 'Unlock Premium Categories',
     premiumDesc: 'Get access to 300+ words across 6 exclusive categories!',
-    premiumFeatures: '• Professions\n• Gen Z Mode\n• Adult Party Mode\n• Movie & TV Characters\n• Fantasy & Mythology\n• Famous Songs',
+    premiumFeatures:
+      '• Professions\n• Gen Z Mode\n• Adult Party Mode\n• Movie & TV Characters\n• Fantasy & Mythology\n• Famous Songs',
     unlockPrice: 'Unlock for $4.99',
     maybeLater: 'Maybe Later',
+    needMorePlayers: (n) => `Add ${n} more player${n === 1 ? '' : 's'} to start.`,
+    maxPlayers: 'Max 12 players',
   },
   lt: {
     title: 'SUKURTI KAMBARĮ',
@@ -320,20 +325,30 @@ const translations = {
     unlockPremium: 'Atrakinti Premium',
     premiumTitle: 'Atrakinti Premium Kategorijas',
     premiumDesc: 'Gaukite prieigą prie 300+ žodžių iš 6 išskirtinių kategorijų!',
-    premiumFeatures: '• Profesijos\n• Gen Z Režimas\n• Suaugusiųjų Vakarėlis\n• Filmų ir TV Personažai\n• Fantazija ir Mitologija\n• Garsios Dainos',
+    premiumFeatures:
+      '• Profesijos\n• Gen Z Režimas\n• Suaugusiųjų Vakarėlis\n• Filmų ir TV Personažai\n• Fantazija ir Mitologija\n• Garsios Dainos',
     unlockPrice: 'Atrakinti už $4.99',
     maybeLater: 'Galbūt Vėliau',
-  }
+    needMorePlayers: (n) => `Pridėkite dar ${n} žaidėją${n === 1 ? '' : 'ų'} pradžiai.`,
+    maxPlayers: 'Maks. 12 žaidėjų',
+  },
 };
 
+/* -------------------- SCREEN -------------------- */
 export default function CreateRoomScreen({ navigation, route }) {
   const { colors, isDarkMode } = useTheme();
   const lang = route.params?.language || 'en';
   const t = translations[lang];
+
   const freeCategories = lang === 'lt' ? freeCategoriesLT : freeCategoriesEN;
   const premiumCategories = lang === 'lt' ? premiumCategoriesLT : premiumCategoriesEN;
 
-  const [players, setPlayers] = useState(['Player 1', 'Player 2', 'Player 3']);
+  const MIN_PLAYERS = 3;
+  const MAX_PLAYERS = 12;
+
+  // ✅ CHANGE #1: start with ZERO players
+  const [players, setPlayers] = useState([]);
+
   const [newPlayerName, setNewPlayerName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(Object.keys(freeCategories)[0]);
   const [numImposters, setNumImposters] = useState(1);
@@ -346,19 +361,36 @@ export default function CreateRoomScreen({ navigation, route }) {
 
   const styles = getStyles(colors, isDarkMode);
 
+  const remainingPlayers = Math.max(0, MIN_PLAYERS - players.length);
+  const canStart = players.length >= MIN_PLAYERS;
+
+  const normalizedPlayers = useMemo(
+    () => players.map((p) => p.trim().toLowerCase()),
+    [players]
+  );
+
   const addPlayer = () => {
-    if (!newPlayerName.trim()) { Alert.alert('Error', t.noName); return; }
-    if (players.includes(newPlayerName.trim())) { Alert.alert('Error', t.duplicateName); return; }
-    if (players.length >= 12) { Alert.alert('Error', 'Max 12 players'); return; }
-    setPlayers([...players, newPlayerName.trim()]);
+    const name = newPlayerName.trim();
+    if (!name) {
+      Alert.alert('Error', t.noName);
+      return;
+    }
+    if (players.length >= MAX_PLAYERS) {
+      Alert.alert('Error', t.maxPlayers);
+      return;
+    }
+    if (normalizedPlayers.includes(name.toLowerCase())) {
+      Alert.alert('Error', t.duplicateName);
+      return;
+    }
+
+    setPlayers((prev) => [...prev, name]);
     setNewPlayerName('');
   };
 
+  // ✅ CHANGE #2: allow removing down to ZERO (no "min 3" block here)
   const removePlayer = (index) => {
-    if (players.length <= 3) { Alert.alert('Error', t.minPlayers); return; }
-    const newPlayers = [...players];
-    newPlayers.splice(index, 1);
-    setPlayers(newPlayers);
+    setPlayers((prev) => prev.filter((_, i) => i !== index));
   };
 
   const selectCategory = (cat, isPremiumCat = false) => {
@@ -375,16 +407,20 @@ export default function CreateRoomScreen({ navigation, route }) {
   };
 
   const startGame = () => {
-    if (players.length < 3) { Alert.alert('Error', t.minPlayers); return; }
+    // ✅ CHANGE #3: gate on start, not on remove
+    if (!canStart) {
+      Alert.alert('Error', t.needMorePlayers(remainingPlayers));
+      return;
+    }
 
     const categoryData = freeCategories[selectedCategory] || premiumCategories[selectedCategory];
     const randomItem = categoryData[Math.floor(Math.random() * categoryData.length)];
     const secretWord = typeof randomItem === 'object' ? randomItem.word : randomItem;
     const hintWord = typeof randomItem === 'object' ? randomItem.hint : '';
-    
+
     let imposterIndices = [];
     const actualNumImposters = chaosRound && Math.random() < 0.3 ? players.length : numImposters;
-    
+
     while (imposterIndices.length < actualNumImposters) {
       const idx = Math.floor(Math.random() * players.length);
       if (!imposterIndices.includes(idx)) imposterIndices.push(idx);
@@ -405,36 +441,67 @@ export default function CreateRoomScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      <StatusBar
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.8}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            activeOpacity={0.8}
+          >
             <Ionicons name="arrow-back" size={24} color={isDarkMode ? '#fff' : '#000'} />
           </TouchableOpacity>
+
           <Text style={styles.title}>{t.title}</Text>
           <View style={styles.placeholder} />
         </View>
 
+        {/* Players */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t.players} ({players.length})</Text>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder={t.playerPlaceholder}
-              placeholderTextColor={isDarkMode ? '#aaaaaa' : '#666666'}
-              value={newPlayerName}
-              onChangeText={setNewPlayerName}
-              maxLength={15}
-              color={isDarkMode ? '#fff' : '#000'}
-            />
-            <TouchableOpacity style={styles.addButton} onPress={addPlayer} activeOpacity={0.8}>
+          <Text style={styles.sectionTitle}>
+            {t.players} ({players.length}/{MAX_PLAYERS})
+          </Text>
+
+          <View style={styles.inputRow}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder={t.playerPlaceholder}
+                placeholderTextColor={isDarkMode ? "#aaaaaa" : "#666666"}
+                value={newPlayerName}
+                onChangeText={setNewPlayerName}
+                maxLength={15}
+                onSubmitEditing={addPlayer}
+                returnKeyType="done"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={addPlayer}
+              activeOpacity={0.9}
+            >
               <Ionicons name="add" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
 
+          {/* Empty state + helper */}
+          {players.length === 0 ? (
+            <Text style={styles.helperText}>{t.needMorePlayers(MIN_PLAYERS)}</Text>
+          ) : !canStart ? (
+            <Text style={styles.helperText}>{t.needMorePlayers(remainingPlayers)}</Text>
+          ) : (
+            <Text style={styles.helperTextOk}>Ready to start.</Text>
+          )}
+
           <View style={styles.playersList}>
             {players.map((player, index) => (
-              <View key={index} style={styles.playerChip}>
+              <View key={`${player}-${index}`} style={styles.playerChip}>
                 <Text style={styles.playerName}>{player}</Text>
                 <TouchableOpacity onPress={() => removePlayer(index)} hitSlop={10}>
                   <Ionicons name="close-circle" size={20} color="#ff1a1a" />
@@ -444,34 +511,41 @@ export default function CreateRoomScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* Free Categories */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.freeCategories}</Text>
+
           <View style={styles.categoryList}>
             {Object.keys(freeCategories).map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]}
-                onPress={() => selectCategory(cat)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>
-                  {cat === 'Random' || cat === 'Atsitiktinė' ? `🎲 ${t.random}` : cat}
-                </Text>
+              <View key={cat} style={{ width: "100%" }}>
+                <AppButton
+                  title={cat === "Random" || cat === "Atsitiktine" ? `🎲 ${t.random}` : cat}
+                  onPress={() => selectCategory(cat)}
+                  activeOpacity={0.8}
+                  style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]}
+                  textStyle={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}
+                />
                 {selectedCategory === cat && <View style={styles.activeGlow} />}
-              </TouchableOpacity>
+              </View>
             ))}
+
           </View>
         </View>
 
+        {/* Premium Categories */}
         <View style={styles.section}>
           <View style={styles.premiumHeader}>
             <Text style={styles.sectionTitle}>{t.premiumCategories}</Text>
             {!isPremium && (
-              <TouchableOpacity style={styles.unlockButton} onPress={() => setShowPremiumModal(true)}>
+              <TouchableOpacity
+                style={styles.unlockButton}
+                onPress={() => setShowPremiumModal(true)}
+              >
                 <Text style={styles.unlockButtonText}>{t.unlockPremium}</Text>
               </TouchableOpacity>
             )}
           </View>
+
           <View style={styles.categoryList}>
             {Object.keys(premiumCategories).map((cat) => (
               <TouchableOpacity
@@ -480,16 +554,18 @@ export default function CreateRoomScreen({ navigation, route }) {
                   styles.categoryChip,
                   styles.premiumChip,
                   selectedCategory === cat && isPremium && styles.categoryChipActive,
-                  !isPremium && styles.lockedChip
+                  !isPremium && styles.lockedChip,
                 ]}
                 onPress={() => selectCategory(cat, true)}
                 activeOpacity={0.8}
               >
-                <Text style={[
-                  styles.categoryText,
-                  !isPremium && styles.lockedText,
-                  selectedCategory === cat && isPremium && styles.categoryTextActive
-                ]}>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    !isPremium && styles.lockedText,
+                    selectedCategory === cat && isPremium && styles.categoryTextActive,
+                  ]}
+                >
                   {cat}
                 </Text>
                 {!isPremium && <Text style={styles.lockIcon}>🔒</Text>}
@@ -498,31 +574,44 @@ export default function CreateRoomScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* Hidden Roles */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.hiddenRoles}</Text>
           <View style={styles.counterContainer}>
             {[1, 2, 3].map((num) => (
               <TouchableOpacity
                 key={num}
-                style={[styles.counterButton, numImposters === num && styles.counterButtonActive]}
+                style={[
+                  styles.counterButton,
+                  numImposters === num ? styles.counterButtonActive : styles.strongOutline,
+                ]}
                 onPress={() => setNumImposters(num)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.counterText, numImposters === num && styles.counterTextActive]}>{num}</Text>
+                <Text style={[styles.counterText, numImposters === num && styles.counterTextActive]}>
+                  {num}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
+        {/* Game Modes */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>GAME MODES</Text>
+
           <View style={styles.toggleRow}>
-            <TouchableOpacity 
-              style={[styles.toggleSquare, clueAssist && styles.toggleSquareActive]}
+            <TouchableOpacity
+              style={[
+                styles.toggleSquare,
+                clueAssist ? styles.toggleSquareActive : styles.strongOutline,
+              ]}
               onPress={() => setClueAssist(!clueAssist)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleSquareTitle, clueAssist && styles.toggleSquareTitleActive]}>{t.clueAssist}</Text>
+              <Text style={[styles.toggleSquareTitle, clueAssist && styles.toggleSquareTitleActive]}>
+                {t.clueAssist}
+              </Text>
               <View style={[styles.toggleIndicator, clueAssist && styles.toggleIndicatorActive]}>
                 <Text style={[styles.toggleIndicatorText, clueAssist && styles.toggleIndicatorTextActive]}>
                   {clueAssist ? t.assistOn : t.assistOff}
@@ -530,13 +619,20 @@ export default function CreateRoomScreen({ navigation, route }) {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.toggleSquare, chaosRound && styles.toggleSquareActive]}
+            <TouchableOpacity
+              style={[
+                styles.toggleSquare,
+                chaosRound ? styles.toggleSquareActive : styles.strongOutline,
+              ]}
               onPress={() => setChaosRound(!chaosRound)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleSquareTitle, chaosRound && styles.toggleSquareTitleActive]}>{t.chaosRound}</Text>
-              <Text style={[styles.toggleSquareSubtitle, chaosRound && styles.toggleSquareSubtitleActive]}>{t.allSpies}</Text>
+              <Text style={[styles.toggleSquareTitle, chaosRound && styles.toggleSquareTitleActive]}>
+                {t.chaosRound}
+              </Text>
+              <Text style={[styles.toggleSquareSubtitle, chaosRound && styles.toggleSquareSubtitleActive]}>
+                {t.allSpies}
+              </Text>
               <View style={[styles.toggleIndicator, chaosRound && styles.toggleIndicatorActive]}>
                 <Text style={[styles.toggleIndicatorText, chaosRound && styles.toggleIndicatorTextActive]}>
                   {chaosRound ? t.chaosOn : t.chaosOff}
@@ -544,13 +640,20 @@ export default function CreateRoomScreen({ navigation, route }) {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.toggleSquare, timeLimit && styles.toggleSquareActive]}
+            <TouchableOpacity
+              style={[
+                styles.toggleSquare,
+                timeLimit ? styles.toggleSquareActive : styles.strongOutline,
+              ]}
               onPress={() => setTimeLimit(!timeLimit)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleSquareTitle, timeLimit && styles.toggleSquareTitleActive]}>{t.timeLimit}</Text>
-              <Text style={[styles.toggleSquareSubtitle, timeLimit && styles.toggleSquareSubtitleActive]}>{t.timeLimitSub}</Text>
+              <Text style={[styles.toggleSquareTitle, timeLimit && styles.toggleSquareTitleActive]}>
+                {t.timeLimit}
+              </Text>
+              <Text style={[styles.toggleSquareSubtitle, timeLimit && styles.toggleSquareSubtitleActive]}>
+                {t.timeLimitSub}
+              </Text>
               <View style={[styles.toggleIndicator, timeLimit && styles.toggleIndicatorActive]}>
                 <Text style={[styles.toggleIndicatorText, timeLimit && styles.toggleIndicatorTextActive]}>
                   {timeLimit ? t.timeOn : t.timeOff}
@@ -560,28 +663,39 @@ export default function CreateRoomScreen({ navigation, route }) {
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={[styles.startButton, pressedButton === 'start' && styles.startButtonPressed]}
+        {/* ✅ CHANGE #4: disable start button until MIN_PLAYERS */}
+        <AppButton
+          title={!canStart ? t.needMorePlayers(remainingPlayers) : t.startGame}
           onPress={startGame}
-          onPressIn={() => setPressedButton('start')}
+          disabled={!canStart}
+          onPressIn={() => setPressedButton("start")}
           onPressOut={() => setPressedButton(null)}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.startButtonText}>{t.startGame}</Text>
-          <Ionicons name="play" size={20} color="#fff" />
-        </TouchableOpacity>
+          style={[
+            styles.startButton,
+            pressedButton === "start" && styles.startButtonPressed,
+            !canStart && styles.startButtonDisabled,
+          ]}
+          textStyle={styles.startButtonText}
+          rightIcon={<Ionicons name="play" size={20} color="#fff" />}
+        />
       </ScrollView>
 
+      {/* Premium modal */}
       <Modal visible={showPremiumModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{t.premiumTitle}</Text>
             <Text style={styles.modalDesc}>{t.premiumDesc}</Text>
             <Text style={styles.modalFeatures}>{t.premiumFeatures}</Text>
+
             <TouchableOpacity style={styles.unlockPriceButton} onPress={unlockPremium}>
               <Text style={styles.unlockPriceText}>{t.unlockPrice}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.maybeLaterButton} onPress={() => setShowPremiumModal(false)}>
+
+            <TouchableOpacity
+              style={styles.maybeLaterButton}
+              onPress={() => setShowPremiumModal(false)}
+            >
               <Text style={styles.maybeLaterText}>{t.maybeLater}</Text>
             </TouchableOpacity>
           </View>
@@ -591,240 +705,358 @@ export default function CreateRoomScreen({ navigation, route }) {
   );
 }
 
-const getStyles = (colors, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { padding: 20, paddingTop: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30 },
-  backButton: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 14, 
-    backgroundColor: colors.surface, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 2, 
-    borderColor: '#000' 
-  },
-  title: { 
-    fontSize: 22, 
-    fontWeight: '900', 
-    color: isDarkMode ? '#fff' : '#000', 
-    letterSpacing: 3 
-  },
-  placeholder: { width: 44 },
-  section: { marginBottom: 28 },
-  sectionTitle: { 
-    fontSize: 14, 
-    fontWeight: '800', 
-    color: isDarkMode ? '#ffffff' : '#000000', 
-    marginBottom: 14, 
-    letterSpacing: 3 
-  },
-  inputContainer: { flexDirection: 'row', gap: 10 },
-  input: { 
-    flex: 1, 
-    backgroundColor: colors.surface, 
-    borderRadius: 14, 
-    padding: 16, 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    fontSize: 16, 
-    color: isDarkMode ? '#fff' : '#000' 
-  },
-  addButton: { 
-    width: 52, 
-    backgroundColor: colors.primary, 
-    borderRadius: 14, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    shadowColor: colors.primary, 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 8, 
-    elevation: 4 
-  },
-  playersList: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  playerChip: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: colors.surface, 
-    paddingVertical: 10, 
-    paddingHorizontal: 16, 
-    borderRadius: 20, 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    gap: 10 
-  },
-  playerName: { 
-    color: isDarkMode ? '#ffffff' : '#000000', 
-    fontWeight: '600', 
-    fontSize: 14 
-  },
-  categoryList: { gap: 8 },
-  categoryChip: { 
-    backgroundColor: colors.surface, 
-    paddingVertical: 14, 
-    paddingHorizontal: 20, 
-    borderRadius: 14, 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    position: 'relative', 
-    overflow: 'hidden' 
-  },
-  categoryChipActive: { backgroundColor: colors.primary, borderColor: '#000' },
-  categoryText: { 
-    color: isDarkMode ? '#ffffff' : '#000000', 
-    fontWeight: '600', 
-    fontSize: 15 
-  },
-  categoryTextActive: { color: '#fff', fontWeight: '700' },
-  activeGlow: { position: 'absolute', top: -20, right: -20, width: 60, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 30 },
-  premiumHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  unlockButton: { 
-    backgroundColor: colors.accent, 
-    paddingVertical: 8, 
-    paddingHorizontal: 16, 
-    borderRadius: 20, 
-    borderWidth: 2, 
-    borderColor: '#000' 
-  },
-  unlockButtonText: { color: '#000', fontWeight: '800', fontSize: 12 },
-  premiumChip: { position: 'relative' },
-  lockedChip: { opacity: 0.6, borderColor: isDarkMode ? '#555555' : '#cccccc' },
-  lockedText: { color: isDarkMode ? '#888888' : '#999999' },
-  lockIcon: { position: 'absolute', right: 20, fontSize: 20 },
-  counterContainer: { flexDirection: 'row', gap: 12 },
-  counterButton: { 
-    flex: 1, 
-    backgroundColor: colors.surface, 
-    paddingVertical: 16, 
-    borderRadius: 14, 
-    alignItems: 'center', 
-    borderWidth: 2, 
-    borderColor: '#000' 
-  },
-  counterButtonActive: { 
-    backgroundColor: colors.primary, 
-    borderColor: '#000', 
-    shadowColor: colors.primary, 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 8, 
-    elevation: 4 
-  },
-  counterText: { 
-    color: isDarkMode ? '#ffffff' : '#000000', 
-    fontSize: 20, 
-    fontWeight: '700' 
-  },
-  counterTextActive: { color: '#fff' },
-  toggleRow: { flexDirection: 'row', gap: 10 },
-  toggleSquare: { 
-    flex: 1, 
-    backgroundColor: colors.surface, 
-    padding: 12, 
-    borderRadius: 14, 
-    alignItems: 'center', 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    minHeight: 100, 
-    justifyContent: 'center' 
-  },
-  toggleSquareActive: { borderColor: '#000', backgroundColor: colors.primary + '15' },
-  toggleSquareTitle: { 
-    color: isDarkMode ? '#ffffff' : '#000000', 
-    fontWeight: '800', 
-    fontSize: 11, 
-    letterSpacing: 1, 
-    marginBottom: 4, 
-    textAlign: 'center' 
-  },
-  toggleSquareTitleActive: { color: isDarkMode ? '#fff' : '#000' },
-  toggleSquareSubtitle: { 
-    color: isDarkMode ? '#aaaaaa' : '#666666', 
-    fontSize: 9, 
-    marginBottom: 8, 
-    textAlign: 'center' 
-  },
-  toggleSquareSubtitleActive: { color: isDarkMode ? '#fff' : '#000', opacity: 0.8 },
-  toggleIndicator: { 
-    backgroundColor: isDarkMode ? '#333333' : '#e0e0e0', 
-    paddingVertical: 4, 
-    paddingHorizontal: 10, 
-    borderRadius: 12, 
-    borderWidth: 1, 
-    borderColor: isDarkMode ? '#555555' : '#999999' 
-  },
-  toggleIndicatorActive: { backgroundColor: colors.primary, borderColor: '#000' },
-  toggleIndicatorText: { 
-    color: isDarkMode ? '#888888' : '#666666', 
-    fontWeight: '700', 
-    fontSize: 10 
-  },
-  toggleIndicatorTextActive: { color: '#fff' },
-  startButton: { 
-    backgroundColor: colors.primary, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingVertical: 20, 
-    borderRadius: 16, 
-    marginTop: 10, 
-    gap: 12, 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    shadowColor: colors.primary, 
-    shadowOffset: { width: 0, height: 6 }, 
-    shadowOpacity: 0.4, 
-    shadowRadius: 12, 
-    elevation: 8, 
-    transform: [{ scale: 1 }] 
-  },
-  startButtonPressed: { transform: [{ scale: 0.97 }], shadowOpacity: 0.2 },
-  startButtonText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 3 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { 
-    backgroundColor: colors.surface, 
-    padding: 30, 
-    borderRadius: 20, 
-    width: '100%', 
-    maxWidth: 350, 
-    borderWidth: 2, 
-    borderColor: '#000' 
-  },
-  modalTitle: { 
-    fontSize: 20, 
-    fontWeight: '900', 
-    color: isDarkMode ? '#fff' : '#000', 
-    marginBottom: 15, 
-    textAlign: 'center', 
-    letterSpacing: 2 
-  },
-  modalDesc: { 
-    fontSize: 14, 
-    color: isDarkMode ? '#ffffff' : '#000000', 
-    marginBottom: 15, 
-    textAlign: 'center', 
-    lineHeight: 20 
-  },
-  modalFeatures: { 
-    fontSize: 13, 
-    color: isDarkMode ? '#aaaaaa' : '#666666', 
-    marginBottom: 25, 
-    lineHeight: 22 
-  },
-  unlockPriceButton: { 
-    backgroundColor: colors.primary, 
-    paddingVertical: 16, 
-    borderRadius: 12, 
-    alignItems: 'center', 
-    marginBottom: 10, 
-    borderWidth: 2, 
-    borderColor: '#000' 
-  },
-  unlockPriceText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
-  maybeLaterButton: { paddingVertical: 12, alignItems: 'center' },
-  maybeLaterText: { color: isDarkMode ? '#888888' : '#666666', fontSize: 14, fontWeight: '600' },
-});
+/* -------------------- STYLES -------------------- */
+const getStyles = (colors, isDarkMode) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollContent: { padding: 20, paddingTop: 20 },
+
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 30,
+    },
+
+    backButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#000',
+    },
+
+    strongOutline: {
+      borderWidth: 2,
+      borderColor: isDarkMode ? '#ffffff' : '#000000',
+      backgroundColor: colors.surface,
+    },
+
+    title: {
+      fontSize: 22,
+      fontWeight: '900',
+      color: isDarkMode ? '#fff' : '#000',
+      letterSpacing: 3,
+    },
+
+    placeholder: { width: 44 },
+
+    section: { marginBottom: 28 },
+
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: isDarkMode ? '#ffffff' : '#000000',
+      marginBottom: 14,
+      letterSpacing: 3,
+    },
+
+    inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
+    inputContainer: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#444444' : '#cccccc',
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+
+    input: {
+      flex: 1,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: isDarkMode ? '#ffffff' : '#000000',
+    },
+
+    addButton: {
+      width: 52,
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#000',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+
+    helperText: {
+      marginTop: 10,
+      color: isDarkMode ? '#aaaaaa' : '#666666',
+      fontWeight: '600',
+    },
+
+    helperTextOk: {
+      marginTop: 10,
+      color: isDarkMode ? '#9dffb3' : '#0a6b2d',
+      fontWeight: '700',
+    },
+
+    playersList: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginTop: 16,
+    },
+
+    playerChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#444444' : '#cccccc',
+      gap: 10,
+    },
+
+    playerName: {
+      color: isDarkMode ? '#ffffff' : '#000000',
+      fontWeight: '600',
+      fontSize: 14,
+    },
+
+    categoryList: { gap: 8 },
+
+    categoryChip: {
+      backgroundColor: colors.surface,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: isDarkMode ? '#ffffff' : '#000000',
+      position: 'relative',
+      overflow: 'hidden',
+    },
+
+    categoryChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: isDarkMode ? '#ffffff' : '#000000',
+    },
+
+    categoryText: {
+      color: isDarkMode ? '#ffffff' : '#000000',
+      fontWeight: '600',
+      fontSize: 15,
+    },
+
+    categoryTextActive: { color: '#fff', fontWeight: '700' },
+
+    activeGlow: {
+      position: 'absolute',
+      top: -20,
+      right: -20,
+      width: 60,
+      height: 60,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      borderRadius: 30,
+    },
+
+    premiumHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+
+    unlockButton: {
+      backgroundColor: colors.accent,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      borderWidth: 2,
+      borderColor: '#000',
+    },
+
+    unlockButtonText: { color: '#000', fontWeight: '800', fontSize: 12 },
+
+    premiumChip: { position: 'relative' },
+
+    lockedChip: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: 'transparent',
+    },
+
+    lockedText: { color: isDarkMode ? '#888888' : '#999999' },
+
+    lockIcon: { position: 'absolute', right: 20, fontSize: 20 },
+
+    counterContainer: { flexDirection: 'row', gap: 12 },
+
+    counterButton: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      paddingVertical: 16,
+      borderRadius: 14,
+      alignItems: 'center',
+    },
+
+    counterButtonActive: {
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: isDarkMode ? '#ffffff' : '#000000',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+
+    counterText: {
+      color: isDarkMode ? '#ffffff' : '#000000',
+      fontSize: 20,
+      fontWeight: '700',
+    },
+
+    counterTextActive: { color: '#fff' },
+
+    toggleRow: { flexDirection: 'row', gap: 10 },
+
+   toggleSquare: {
+  flex: 1,
+  backgroundColor: colors.surface,
+  padding: 12,
+  borderRadius: 14,
+  alignItems: 'center',
+  minHeight: 120,
+  justifyContent: 'space-between',
+},
+
+    toggleSquareActive: {
+      borderWidth: 2,
+      borderColor: isDarkMode ? '#ffffff' : '#000000',
+      backgroundColor: colors.primary + '15',
+    },
+
+    toggleSquareTitle: {
+      color: isDarkMode ? '#ffffff' : '#000000',
+      fontWeight: '800',
+      fontSize: 11,
+      letterSpacing: 1,
+      marginBottom: 4,
+      textAlign: 'center',
+    },
+
+    toggleSquareTitleActive: { color: isDarkMode ? '#fff' : '#000' },
+
+    toggleSquareSubtitle: {
+      color: isDarkMode ? '#aaaaaa' : '#666666',
+      fontSize: 9,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+
+    toggleSquareSubtitleActive: { color: isDarkMode ? '#fff' : '#000', opacity: 0.8 },
+
+    toggleIndicator: {
+      backgroundColor: isDarkMode ? '#333333' : '#e0e0e0',
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#555555' : '#999999',
+    },
+
+    toggleIndicatorActive: { backgroundColor: colors.primary, borderColor: '#000' },
+
+    toggleIndicatorText: {
+      color: isDarkMode ? '#888888' : '#666666',
+      fontWeight: '700',
+      fontSize: 10,
+    },
+
+    toggleIndicatorTextActive: { color: '#fff' },
+
+    startButton: {
+      backgroundColor: colors.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 20,
+      borderRadius: 16,
+      marginTop: 10,
+      gap: 12,
+      borderWidth: 2,
+      borderColor: '#000',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 8,
+      transform: [{ scale: 1 }],
+    },
+
+    startButtonDisabled: { opacity: 0.45 },
+
+    startButtonPressed: { transform: [{ scale: 0.97 }], shadowOpacity: 0.2 },
+
+    startButtonText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 2 },
+
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+
+    modalContent: {
+      backgroundColor: colors.surface,
+      padding: 30,
+      borderRadius: 20,
+      width: '100%',
+      maxWidth: 350,
+      borderWidth: 2,
+      borderColor: '#000',
+    },
+
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '900',
+      color: isDarkMode ? '#fff' : '#000',
+      marginBottom: 15,
+      textAlign: 'center',
+      letterSpacing: 2,
+    },
+
+    modalDesc: {
+      fontSize: 14,
+      color: isDarkMode ? '#ffffff' : '#000000',
+      marginBottom: 15,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+
+    modalFeatures: {
+      fontSize: 13,
+      color: isDarkMode ? '#aaaaaa' : '#666666',
+      marginBottom: 25,
+      lineHeight: 22,
+    },
+
+    unlockPriceButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginBottom: 10,
+      borderWidth: 2,
+      borderColor: '#000',
+    },
+
+    unlockPriceText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
+
+    maybeLaterButton: { paddingVertical: 12, alignItems: 'center' },
+
+    maybeLaterText: { color: isDarkMode ? '#888888' : '#666666', fontSize: 14, fontWeight: '600' },
+  });

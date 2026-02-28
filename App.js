@@ -14,6 +14,11 @@ import JoinRoomScreen from './screens/JoinRoomScreen';
 import LobbyScreen from './screens/LobbyScreen';
 import CustomCategoryScreen from './screens/CustomCategoryScreen';
 import SelectLanguageScreen from './screens/SelectLanguageScreen';
+
+// ✅ NEW imports
+import DiscussionScreen from './screens/DiscussionScreen';
+import RevealResultScreen from './screens/RevealResultScreen';
+
 import { ThemeProvider } from './context/ThemeContext';
 
 const Stack = createNativeStackNavigator();
@@ -52,7 +57,7 @@ export default function App() {
       <NavigationContainer>
         <View style={styles.container} onLayout={onLayoutRootView}>
           <StatusBar style="auto" />
-          <Stack.Navigator 
+          <Stack.Navigator
             initialRouteName="Intro"
             screenOptions={{ headerShown: false }}
           >
@@ -65,6 +70,10 @@ export default function App() {
             <Stack.Screen name="HowToPlay" component={HowToPlayScreen} />
             <Stack.Screen name="CustomCategory" component={CustomCategoryScreen} />
             <Stack.Screen name="SelectLanguage" component={SelectLanguageScreen} />
+
+            {/* ✅ NEW routes */}
+            <Stack.Screen name="Discussion" component={DiscussionScreen} />
+            <Stack.Screen name="RevealResult" component={RevealResultScreen} />
           </Stack.Navigator>
         </View>
       </NavigationContainer>

@@ -36,6 +36,7 @@ export const ThemeProvider = ({ children }) => {
     isDarkMode,
     toggleTheme,
     colors: isDarkMode ? {
+      buttonOutline: '#ffffff',
       // NEON DARK MODE - Gaming Aesthetic
       background: '#050505',
       surface: '#0a0a0a',
@@ -59,6 +60,7 @@ export const ThemeProvider = ({ children }) => {
       glowCyan: 'rgba(0, 255, 255, 0.2)',
     } : {
       // LIGHT MODE (clean, modern)
+      buttonOutline: '#000000',
       background: '#f8f9fa',
       surface: '#ffffff',
       surfaceElevated: '#ffffff',

@@ -1,4 +1,5 @@
 // HomeScreen.js - Buttons moved up by ~1 inch (roughly 100px)
+import AppButton from "../components/AppButton";
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -96,7 +97,18 @@ const AnimatedButton = ({ children, style, onPress, colors, isDarkMode, secondar
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity style={style} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} activeOpacity={0.9}>
+      <TouchableOpacity
+  style={[
+    style,
+    {
+      borderWidth: 2,
+      borderColor: isDarkMode ? '#ffffff' : '#000000'
+    }
+  ]}
+  onPress={onPress}
+  onPressIn={onPressIn}
+  onPressOut={onPressOut}
+>
         {!secondary && isDarkMode && (
           <Animated.View style={[buttonStyles.buttonGlow, { opacity: glowAnim, shadowColor: colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 20 }]} />
         )}
