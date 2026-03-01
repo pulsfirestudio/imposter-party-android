@@ -14,12 +14,12 @@ import JoinRoomScreen from './screens/JoinRoomScreen';
 import LobbyScreen from './screens/LobbyScreen';
 import CustomCategoryScreen from './screens/CustomCategoryScreen';
 import SelectLanguageScreen from './screens/SelectLanguageScreen';
-
-// ✅ NEW imports
+import SettingsScreen from './screens/SettingsScreen';
 import DiscussionScreen from './screens/DiscussionScreen';
 import RevealResultScreen from './screens/RevealResultScreen';
 
 import { ThemeProvider } from './context/ThemeContext';
+import { SettingsProvider } from './context/SettingsContext';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,7 +38,6 @@ export default function App() {
         setAppIsReady(true);
       }
     }
-
     prepare();
   }, []);
 
@@ -53,31 +52,32 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <NavigationContainer>
-        <View style={styles.container} onLayout={onLayoutRootView}>
-          <StatusBar style="auto" />
-          <Stack.Navigator
-            initialRouteName="Intro"
-            screenOptions={{ headerShown: false }}
-          >
-            <Stack.Screen name="Intro" component={IntroVideoScreen} />
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
-            <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
-            <Stack.Screen name="Lobby" component={LobbyScreen} />
-            <Stack.Screen name="Game" component={GameScreen} />
-            <Stack.Screen name="HowToPlay" component={HowToPlayScreen} />
-            <Stack.Screen name="CustomCategory" component={CustomCategoryScreen} />
-            <Stack.Screen name="SelectLanguage" component={SelectLanguageScreen} />
-
-            {/* ✅ NEW routes */}
-            <Stack.Screen name="Discussion" component={DiscussionScreen} />
-            <Stack.Screen name="RevealResult" component={RevealResultScreen} />
-          </Stack.Navigator>
-        </View>
-      </NavigationContainer>
-    </ThemeProvider>
+    <SettingsProvider>
+      <ThemeProvider>
+        <NavigationContainer>
+          <View style={styles.container} onLayout={onLayoutRootView}>
+            <StatusBar style="auto" />
+            <Stack.Navigator
+              initialRouteName="Intro"
+              screenOptions={{ headerShown: false }}
+            >
+              <Stack.Screen name="Intro" component={IntroVideoScreen} />
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
+              <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
+              <Stack.Screen name="Lobby" component={LobbyScreen} />
+              <Stack.Screen name="Game" component={GameScreen} />
+              <Stack.Screen name="HowToPlay" component={HowToPlayScreen} />
+              <Stack.Screen name="CustomCategory" component={CustomCategoryScreen} />
+              <Stack.Screen name="SelectLanguage" component={SelectLanguageScreen} />
+              <Stack.Screen name="Discussion" component={DiscussionScreen} />
+              <Stack.Screen name="RevealResult" component={RevealResultScreen} />
+            </Stack.Navigator>
+          </View>
+        </NavigationContainer>
+      </ThemeProvider>
+    </SettingsProvider>
   );
 }
 

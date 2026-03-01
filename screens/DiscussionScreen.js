@@ -10,17 +10,36 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Vibration,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { lightHaptic, mediumHaptic, heavyHaptic, errorHaptic } from "../utils/HapticsManager";
+
+import SoundManager, { setSoundEnabled } from "../utils/SoundManager";
+import { useSettings } from "../context/SettingsContext";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const isSmallScreen = SCREEN_HEIGHT < 700;
 
 // ─── Word/category data (mirrors CreateRoomScreen) ───────────────────────────
 const freeCategoriesEN = {
-  'Random': ['random1', 'random2', 'random3', 'random4', 'random5', 'random6'],
+  'Random': [
+    { word: 'Toothbrush', hint: 'bathroom' }, { word: 'Lion', hint: 'predator' },
+    { word: 'Elon Musk', hint: 'tech' }, { word: 'Grand', hint: 'fine' },
+    { word: 'Chair', hint: 'seating' }, { word: 'Taylor Swift', hint: 'pop' },
+    { word: 'Dolphin', hint: 'smart' }, { word: 'Craic', hint: 'fun' },
+    { word: 'Mirror', hint: 'reflection' }, { word: 'Cristiano Ronaldo', hint: 'football' },
+    { word: 'Eagle', hint: 'wings' }, { word: 'Deadly', hint: 'great' },
+    { word: 'Laptop', hint: 'computer' }, { word: 'Beyoncé', hint: 'singer' },
+    { word: 'Shark', hint: 'ocean' }, { word: 'Gobshite', hint: 'idiot' },
+    { word: 'Umbrella', hint: 'rain' }, { word: 'LeBron James', hint: 'basketball' },
+    { word: 'Penguin', hint: 'cold' }, { word: 'Knackered', hint: 'tired' },
+    { word: 'Fridge', hint: 'cold' }, { word: 'Leonardo DiCaprio', hint: 'Oscar' },
+    { word: 'Wolf', hint: 'pack' }, { word: 'Scarlet', hint: 'embarrassed' },
+    { word: 'Microwave', hint: 'heating' }, { word: 'Gordon Ramsay', hint: 'cooking' },
+    { word: 'Octopus', hint: 'tentacles' }, { word: 'Gaff', hint: 'home' },
+    { word: 'Headphones', hint: 'audio' }, { word: 'MrBeast', hint: 'YouTube' },
+  ],
   'Everyday Objects': [
     { word: 'Toothbrush', hint: 'bathroom' }, { word: 'Chair', hint: 'seating' },
     { word: 'Table', hint: 'surface' }, { word: 'Couch', hint: 'livingroom' },
@@ -132,7 +151,20 @@ const freeCategoriesEN = {
 };
 
 const freeCategoriesLT = {
-  'Atsitiktinė': ['random1', 'random2', 'random3', 'random4', 'random5', 'random6'],
+  'Atsitiktinė': [
+    { word: 'Dantų šepetėlis', hint: 'vonios kambarys' }, { word: 'Liūtas', hint: 'plėšrūnas' },
+    { word: 'Elon Musk', hint: 'technologijos' }, { word: 'Grand', hint: 'gerai' },
+    { word: 'Kėdė', hint: 'sėdėjimas' }, { word: 'Taylor Swift', hint: 'pop' },
+    { word: 'Delfinas', hint: 'protingas' }, { word: 'Craic', hint: 'linksmybės' },
+    { word: 'Veidrodis', hint: 'atspindys' }, { word: 'Cristiano Ronaldo', hint: 'futbolas' },
+    { word: 'Erelis', hint: 'sparnai' }, { word: 'Deadly', hint: 'puiku' },
+    { word: 'Nešiojamas', hint: 'kompiuteris' }, { word: 'Beyoncé', hint: 'dainininkė' },
+    { word: 'Ryklys', hint: 'vandenynas' }, { word: 'Gobshite', hint: 'idiotas' },
+    { word: 'Skėtis', hint: 'lietus' }, { word: 'LeBron James', hint: 'krepšinis' },
+    { word: 'Pingvinas', hint: 'šaltis' }, { word: 'Knackered', hint: 'pavargęs' },
+    { word: 'Šaldytuvas', hint: 'šaltis' }, { word: 'Gordon Ramsay', hint: 'virimas' },
+    { word: 'Vilkas', hint: 'gauja' }, { word: 'Scarlet', hint: 'gėda' },
+  ],
   'Kasdieniai Daiktai': [
     { word: 'Dantų šepetėlis', hint: 'vonios kambarys' }, { word: 'Kėdė', hint: 'sėdėjimas' },
     { word: 'Stalas', hint: 'paviršius' }, { word: 'Sofa', hint: 'svetainė' },
@@ -156,10 +188,18 @@ const freeCategoriesLT = {
 };
 
 // ─── Pick a new random word + spies for the same category + players ──────────
-const pickNewRound = (categoryId, players, numImposters = 1, language = "en") => {
+const pickNewRound = (categoryId, players, numImposters = 1, language = "en", usedWords = []) => {
   const freeCategories = language === "lt" ? freeCategoriesLT : freeCategoriesEN;
   const categoryData = freeCategories[categoryId] ?? Object.values(freeCategories)[0];
-  const randomItem = categoryData[Math.floor(Math.random() * categoryData.length)];
+
+  // Filter out already used words, fall back to full list if all exhausted
+  const available = categoryData.filter((item) => {
+    const w = typeof item === "object" ? item.word : item;
+    return !usedWords.includes(w);
+  });
+  const pool = available.length > 0 ? available : categoryData;
+
+  const randomItem = pool[Math.floor(Math.random() * pool.length)];
   const secretWord = typeof randomItem === "object" ? randomItem.word : randomItem;
   const hintWord = typeof randomItem === "object" ? randomItem.hint : "";
 
@@ -186,7 +226,7 @@ const TRANSLATIONS = {
     newGame: "New Game",
     restartGame: "Restart Game",
     players: "PLAYER ORDER",
-    timerLabel: (s) => `${s}s`,
+    timerLabel: (s) => `${s}`,
   },
   lt: {
     title: "DISKUSIJA",
@@ -200,7 +240,7 @@ const TRANSLATIONS = {
     newGame: "Naujas žaidimas",
     restartGame: "Paleisti iš naujo",
     players: "ŽAIDĖJŲ EILĖ",
-    timerLabel: (s) => `${s}s`,
+    timerLabel: (s) => `${s}`,
   },
 };
 
@@ -208,6 +248,7 @@ const pickRandomIndex = (arr) => Math.floor(Math.random() * arr.length);
 
 export default function DiscussionScreen({ route, navigation }) {
   const { colors, isDarkMode } = useTheme();
+  const { soundEnabled, vibrationEnabled } = useSettings();
 
   const {
     players = [],
@@ -220,9 +261,19 @@ export default function DiscussionScreen({ route, navigation }) {
     timeLimit = false,
     timePerPerson = 15,
     numImposters = 1,
+    usedWords = [],
   } = route.params || {};
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
+
+  // Preload sounds when screen mounts
+  useEffect(() => {
+    SoundManager.preloadAll();
+    return () => SoundManager.unloadAll();
+  }, []);
+
+  // Keep SoundManager in sync with settings
+  useEffect(() => { setSoundEnabled(soundEnabled); }, [soundEnabled]);
 
   const [startIndex] = useState(() => pickRandomIndex(players));
   const orderedPlayers = useMemo(() => {
@@ -248,7 +299,8 @@ export default function DiscussionScreen({ route, navigation }) {
   const triggerTimesUp = useCallback(() => {
     setTimesUp(true);
     setTimerRunning(false);
-    Vibration.vibrate([0, 300, 100, 300, 100, 500]);
+    SoundManager.playTimesUp();
+    errorHaptic();
     flashLoopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(flashAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
@@ -267,11 +319,14 @@ export default function DiscussionScreen({ route, navigation }) {
   useEffect(() => {
     if (!timerRunning) return;
     if (timeLeft <= 0) { triggerTimesUp(); return; }
+    // Beep on last 5 seconds
+    if (timeLeft <= 5) SoundManager.playCountdownBeep();
     const id = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearTimeout(id);
   }, [timerRunning, timeLeft, triggerTimesUp]);
 
   const advancePlayer = () => {
+    mediumHaptic();
     if (flashLoopRef.current) { flashLoopRef.current.stop(); flashLoopRef.current = null; }
     flashAnim.setValue(0);
     scaleAnim.setValue(1);
@@ -285,16 +340,23 @@ export default function DiscussionScreen({ route, navigation }) {
     setTimerRunning(timeLimit);
   };
 
-  const onReveal = () => navigation.navigate("RevealResult", {
+  const onReveal = () => {
+    lightHaptic();
+    navigation.navigate("RevealResult", {
     players, language, categoryId, categoryName, word, spyIndex, imposterIndices,
   });
+  };
 
-  const onNewGame = () => navigation.replace("CreateRoom", { language });
+  const onNewGame = () => {
+    lightHaptic();
+    navigation.replace("CreateRoom", { language });
+  };
 
-  // ── Restart: pick a brand new word + new random spy, same category + players ──
   const onRestartGame = () => {
+    lightHaptic();
+    const nextUsedWords = word ? [...usedWords, word] : usedWords;
     const { secretWord, hintWord, imposterIndices: newImposters } = pickNewRound(
-      categoryId, players, numImposters, language
+      categoryId, players, numImposters, language, nextUsedWords
     );
     navigation.replace("Game", {
       players,
@@ -309,6 +371,7 @@ export default function DiscussionScreen({ route, navigation }) {
       timeLimit,
       timePerPerson,
       numImposters,
+      usedWords: nextUsedWords,
     });
   };
 
@@ -331,7 +394,7 @@ export default function DiscussionScreen({ route, navigation }) {
         <View style={styles.header}>
           <Text style={styles.title}>{t.title}</Text>
           <TouchableOpacity style={[styles.closeBtn, { borderColor: border }]} onPress={onNewGame} activeOpacity={0.8}>
-            <Ionicons name="close" size={18} color={isDarkMode ? "#fff" : "#000"} />
+            <Ionicons name="close" size={20} color={isDarkMode ? "#fff" : "#000"} />
           </TouchableOpacity>
         </View>
 
@@ -359,7 +422,7 @@ export default function DiscussionScreen({ route, navigation }) {
                 onPress={advancePlayer}
                 activeOpacity={0.85}
               >
-                <Ionicons name={timesUp ? "alert-circle" : "arrow-forward-circle"} size={20} color="#fff" />
+                <Ionicons name={timesUp ? "alert-circle" : "arrow-forward-circle"} size={22} color="#fff" />
                 <Text style={styles.nextBtnText}>{timesUp ? `${t.timeUp}  ${t.tapToContinue}` : t.next}</Text>
               </TouchableOpacity>
             </Animated.View>
@@ -390,7 +453,7 @@ export default function DiscussionScreen({ route, navigation }) {
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.revealBtn} onPress={onReveal} activeOpacity={0.9}>
-            <Ionicons name="eye" size={18} color={isDarkMode ? "#000" : "#fff"} />
+            <Ionicons name="eye" size={20} color={isDarkMode ? "#000" : "#fff"} />
             <Text style={styles.revealBtnText}>{t.revealBtn}</Text>
           </TouchableOpacity>
 
@@ -400,7 +463,7 @@ export default function DiscussionScreen({ route, navigation }) {
               onPress={onRestartGame}
               activeOpacity={0.8}
             >
-              <Ionicons name="refresh" size={13} color={isDarkMode ? "#aaa" : "#555"} />
+              <Ionicons name="refresh" size={15} color={isDarkMode ? "#aaa" : "#555"} />
               <Text style={styles.smallBtnText}>{t.restartGame}</Text>
             </TouchableOpacity>
 
@@ -425,42 +488,49 @@ const getStyles = (colors, isDarkMode) =>
     layout: {
       flex: 1,
       paddingHorizontal: 18,
-      paddingTop: isSmallScreen ? 16 : 22,
+      // ↑ Increased top padding so header clears status bar comfortably
+      paddingTop: isSmallScreen ? 28 : 38,
       paddingBottom: isSmallScreen ? 20 : 30,
     },
     header: {
       flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-      marginBottom: isSmallScreen ? 6 : 10,
+      marginBottom: isSmallScreen ? 8 : 12,
     },
+    // ↑ Bigger title
     title: {
-      fontSize: isSmallScreen ? 17 : 20, fontWeight: "900", letterSpacing: 3,
+      fontSize: isSmallScreen ? 20 : 24, fontWeight: "900", letterSpacing: 3,
       color: isDarkMode ? "#fff" : "#000",
     },
     closeBtn: {
-      width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface,
+      width: 38, height: 38, borderRadius: 11, backgroundColor: colors.surface,
       borderWidth: 2, justifyContent: "center", alignItems: "center",
     },
+    // ↑ Bigger subtitle
     subtitle: {
-      fontSize: isSmallScreen ? 11 : 13, color: isDarkMode ? "#aaa" : "#555",
-      marginBottom: isSmallScreen ? 8 : 12,
+      fontSize: isSmallScreen ? 13 : 15, color: isDarkMode ? "#aaa" : "#555",
+      marginBottom: isSmallScreen ? 10 : 14,
     },
     currentCard: {
       backgroundColor: colors.surface, borderRadius: 16, borderWidth: 2,
       paddingVertical: isSmallScreen ? 10 : 14, paddingHorizontal: 20,
       alignItems: "center", marginBottom: isSmallScreen ? 8 : 12,
     },
+    // ↑ Bigger "NOW TALKING" label
     nowTalkingLabel: {
-      fontSize: 10, fontWeight: "800", letterSpacing: 3,
+      fontSize: 12, fontWeight: "800", letterSpacing: 3,
       color: isDarkMode ? "#aaa" : "#666", marginBottom: 4,
     },
+    // ↑ Bigger current player name
     currentPlayerName: {
-      fontSize: isSmallScreen ? 24 : 30, fontWeight: "900",
+      fontSize: isSmallScreen ? 28 : 34, fontWeight: "900",
       color: isDarkMode ? "#fff" : "#000", letterSpacing: 1,
       marginBottom: 3, textAlign: "center",
     },
-    startsConvo: { fontSize: 12, color: isDarkMode ? "#aaa" : "#555", fontWeight: "600" },
+    // ↑ Bigger starts convo text
+    startsConvo: { fontSize: 14, color: isDarkMode ? "#aaa" : "#555", fontWeight: "600" },
     timerSection: { alignItems: "center", marginBottom: isSmallScreen ? 8 : 12, gap: 7 },
-    timerNumber: { fontSize: isSmallScreen ? 38 : 48, fontWeight: "900", letterSpacing: 1 },
+    // ↑ Bigger timer number
+    timerNumber: { fontSize: isSmallScreen ? 42 : 52, fontWeight: "900", letterSpacing: 1, textAlign: 'center', width: '100%' },
     timerBarBg: {
       width: "100%", height: 5, backgroundColor: isDarkMode ? "#333" : "#ddd",
       borderRadius: 3, overflow: "hidden",
@@ -468,48 +538,55 @@ const getStyles = (colors, isDarkMode) =>
     timerBarFill: { height: "100%", borderRadius: 3 },
     nextBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-      backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 12,
+      backgroundColor: colors.primary, paddingVertical: 13, borderRadius: 12,
       borderWidth: 2, width: "100%",
     },
     nextBtnAlert: { backgroundColor: "#ff1a1a", borderColor: "#ff1a1a" },
-    nextBtnText: { color: "#fff", fontWeight: "800", fontSize: 13, letterSpacing: 1 },
+    // ↑ Bigger next button text
+    nextBtnText: { color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 1 },
     section: { flex: 1, marginBottom: isSmallScreen ? 8 : 12 },
+    // ↑ Bigger section label
     sectionLabel: {
-      fontSize: 10, fontWeight: "800", letterSpacing: 3,
-      color: isDarkMode ? "#aaa" : "#666", marginBottom: 6,
+      fontSize: 12, fontWeight: "800", letterSpacing: 3,
+      color: isDarkMode ? "#aaa" : "#666", marginBottom: 7,
     },
     playerList: { gap: 5 },
     playerRow: {
       flexDirection: "row", alignItems: "center", gap: 10,
       backgroundColor: colors.surface, borderRadius: 11, borderWidth: 2,
       borderColor: isDarkMode ? "#333" : "#ccc",
-      paddingVertical: isSmallScreen ? 7 : 9, paddingHorizontal: 12,
+      paddingVertical: isSmallScreen ? 8 : 10, paddingHorizontal: 12,
     },
     playerRowActive: { borderColor: isDarkMode ? "#fff" : "#000", backgroundColor: colors.primary + "15" },
     playerIndex: {
-      width: 24, height: 24, borderRadius: 6,
+      width: 26, height: 26, borderRadius: 7,
       backgroundColor: isDarkMode ? "#333" : "#ddd",
       justifyContent: "center", alignItems: "center",
     },
     playerIndexActive: { backgroundColor: colors.primary },
-    playerIndexText: { fontSize: 11, fontWeight: "800", color: isDarkMode ? "#aaa" : "#555" },
+    // ↑ Bigger player index number
+    playerIndexText: { fontSize: 13, fontWeight: "800", color: isDarkMode ? "#aaa" : "#555" },
     playerIndexTextActive: { color: "#fff" },
-    playerRowName: { flex: 1, fontSize: 14, fontWeight: "700", color: isDarkMode ? "#ccc" : "#444" },
+    // ↑ Bigger player name in list
+    playerRowName: { flex: 1, fontSize: 16, fontWeight: "700", color: isDarkMode ? "#ccc" : "#444" },
     playerRowNameActive: { color: isDarkMode ? "#fff" : "#000", fontWeight: "900" },
-    talkingPill: { backgroundColor: colors.primary, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 20 },
-    talkingPillText: { color: "#fff", fontSize: 8, fontWeight: "800", letterSpacing: 1 },
+    talkingPill: { backgroundColor: colors.primary, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 20 },
+    // ↑ Bigger talking pill text
+    talkingPillText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 1 },
     actions: { gap: 7 },
     revealBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
       backgroundColor: isDarkMode ? "#fff" : "#000",
-      paddingVertical: isSmallScreen ? 13 : 15,
+      paddingVertical: isSmallScreen ? 14 : 16,
       borderRadius: 14, borderWidth: 2, borderColor: isDarkMode ? "#fff" : "#000",
     },
-    revealBtnText: { color: isDarkMode ? "#000" : "#fff", fontSize: 13, fontWeight: "900", letterSpacing: 2 },
+    // ↑ Bigger reveal button text
+    revealBtnText: { color: isDarkMode ? "#000" : "#fff", fontSize: 15, fontWeight: "900", letterSpacing: 2 },
     bottomRow: { flexDirection: "row", gap: 8 },
     smallBtn: {
       flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-      gap: 5, paddingVertical: isSmallScreen ? 9 : 11, borderRadius: 11, borderWidth: 1.5,
+      gap: 5, paddingVertical: isSmallScreen ? 10 : 12, borderRadius: 11, borderWidth: 1.5,
     },
-    smallBtnText: { color: isDarkMode ? "#aaa" : "#555", fontSize: 12, fontWeight: "700" },
+    // ↑ Bigger small button text
+    smallBtnText: { color: isDarkMode ? "#aaa" : "#555", fontSize: 14, fontWeight: "700" },
   });

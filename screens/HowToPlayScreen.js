@@ -1,14 +1,7 @@
 // HowToPlayScreen.js
 import React from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Image,
-  StatusBar,
+  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -21,18 +14,15 @@ const translations = {
     step2: 'The Secret Word',
     step2Text: 'Each round, everyone except the Spy sees the secret word. The Spy is left in the dark, scrambling to blend in.',
     step3: 'Drop Your Clues',
-    // ← Updated description
     step3Text: 'Go around and give clues related to the secret word — either use a one-word clue or talk about what the word means to you. Be clever, but not too obvious!',
-    // ← Hot Seat removed; step 4 is now Cast Your Votes
     step4: 'Cast Your Votes',
     step4Text: 'Everyone votes on who they think is the Spy. Majority rules. Choose wisely.',
     step5: 'The Reveal',
     step5Text: 'If the Spy fools the group — Spies win! If caught red-handed — Agents take the victory!',
     proTips: 'PRO TIPS',
     tip1: '• Spies: Listen carefully and mirror the energy. Vague is your friend.',
-    tip2: '• Agents: Watch for hesitation or clues that don\'t quite fit.',
-    // ← Chaos Round wording updated
-    tip3: '• Chaos Round: There\'s a chance everyone becomes a Spy. When paranoia hits maximum — trust no one.',
+    tip2: "• Agents: Watch for hesitation or clues that don't quite fit.",
+    tip3: "• Chaos Round: There's a chance everyone becomes a Spy. When paranoia hits maximum — trust no one.",
     back: 'BACK',
   },
   lt: {
@@ -65,7 +55,6 @@ export default function HowToPlayScreen({ navigation, route }) {
     { emoji: '🎮', title: t.step1, text: t.step1Text },
     { emoji: '🕵️', title: t.step2, text: t.step2Text },
     { emoji: '💬', title: t.step3, text: t.step3Text },
-    // Hot Seat (🔥) removed
     { emoji: '🗳️', title: t.step4, text: t.step4Text },
     { emoji: '🏆', title: t.step5, text: t.step5Text },
   ];
@@ -81,11 +70,9 @@ export default function HowToPlayScreen({ navigation, route }) {
           <Text style={styles.title}>{t.title}</Text>
           <View style={styles.placeholder} />
         </View>
-
         <View style={styles.logoContainer}>
           <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain" />
         </View>
-
         <View style={styles.stepsContainer}>
           {steps.map((step, i) => (
             <View key={i} style={styles.stepCard}>
@@ -95,16 +82,14 @@ export default function HowToPlayScreen({ navigation, route }) {
             </View>
           ))}
         </View>
-
         <View style={styles.tipsCard}>
           <Text style={styles.tipsTitle}>{t.proTips}</Text>
           <Text style={styles.tipText}>{t.tip1}</Text>
           <Text style={styles.tipText}>{t.tip2}</Text>
           <Text style={styles.tipText}>{t.tip3}</Text>
         </View>
-
         <TouchableOpacity style={styles.backButtonLarge} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
           <Text style={styles.backButtonText}>{t.back}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -114,63 +99,21 @@ export default function HowToPlayScreen({ navigation, route }) {
 
 const getStyles = (colors, isDarkMode) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { padding: 20, paddingTop: 20 },
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 20,
-  },
-  backButton: {
-    width: 44, height: 44, borderRadius: 14,
-    backgroundColor: colors.surface,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000',
-  },
-  title: {
-    fontSize: 24, fontWeight: '900',
-    color: isDarkMode ? '#fff' : '#000',
-    letterSpacing: 2,
-    textShadowColor: isDarkMode ? colors.primary : 'transparent',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: isDarkMode ? 2 : 0,
-  },
+  scrollContent: { padding: 20, paddingTop: 38 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000' },
+  title: { fontSize: 26, fontWeight: '900', color: isDarkMode ? '#fff' : '#000', letterSpacing: 2, textShadowColor: isDarkMode ? colors.primary : 'transparent', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: isDarkMode ? 2 : 0 },
   placeholder: { width: 44 },
   logoContainer: { alignItems: 'center', marginBottom: 30 },
   logo: { width: 120, height: 120 },
   stepsContainer: { gap: 15, marginBottom: 25 },
-  stepCard: {
-    backgroundColor: colors.surface,
-    padding: 20, borderRadius: 16,
-    borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000',
-  },
-  stepEmoji: { fontSize: 32, marginBottom: 10 },
-  stepTitle: {
-    fontSize: 18, fontWeight: '800',
-    color: isDarkMode ? '#fff' : '#000',
-    marginBottom: 8, letterSpacing: 1,
-  },
-  stepText: {
-    fontSize: 14, color: isDarkMode ? '#fff' : '#000', lineHeight: 20,
-  },
-  tipsCard: {
-    backgroundColor: colors.primary + '15',
-    padding: 20, borderRadius: 16,
-    borderWidth: 2, borderColor: colors.primary,
-    marginBottom: 25,
-  },
-  tipsTitle: {
-    fontSize: 18, fontWeight: '800',
-    color: isDarkMode ? '#fff' : '#000',
-    marginBottom: 15, letterSpacing: 1,
-  },
-  tipText: {
-    fontSize: 14, color: isDarkMode ? '#fff' : '#000',
-    marginBottom: 8, lineHeight: 20,
-  },
-  backButtonLarge: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 16, borderRadius: 12,
-    gap: 10, borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000',
-  },
-  backButtonText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+  stepCard: { backgroundColor: colors.surface, padding: 22, borderRadius: 16, borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000' },
+  stepEmoji: { fontSize: 34, marginBottom: 10 },
+  stepTitle: { fontSize: 20, fontWeight: '800', color: isDarkMode ? '#fff' : '#000', marginBottom: 8, letterSpacing: 1 },
+  stepText: { fontSize: 16, color: isDarkMode ? '#fff' : '#000', lineHeight: 23 },
+  tipsCard: { backgroundColor: colors.primary + '15', padding: 22, borderRadius: 16, borderWidth: 2, borderColor: colors.primary, marginBottom: 25 },
+  tipsTitle: { fontSize: 20, fontWeight: '800', color: isDarkMode ? '#fff' : '#000', marginBottom: 15, letterSpacing: 1 },
+  tipText: { fontSize: 16, color: isDarkMode ? '#fff' : '#000', marginBottom: 8, lineHeight: 23 },
+  backButtonLarge: { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, borderRadius: 12, gap: 10, borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000' },
+  backButtonText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 1 },
 });

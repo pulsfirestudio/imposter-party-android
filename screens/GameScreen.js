@@ -14,20 +14,13 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
-// ─── player card colour palette ───────────────────────────────────────────────
 const PLAYER_COLORS = [
-  { bg: "#FFE066", text: "#1a1a1a" },
-  { bg: "#6EE6FA", text: "#1a1a1a" },
-  { bg: "#B5F5A0", text: "#1a1a1a" },
-  { bg: "#FFB347", text: "#1a1a1a" },
-  { bg: "#C3A6FF", text: "#1a1a1a" },
-  { bg: "#FF8FAB", text: "#1a1a1a" },
-  { bg: "#A0E7E5", text: "#1a1a1a" },
-  { bg: "#FFC8A2", text: "#1a1a1a" },
-  { bg: "#D4F1F4", text: "#1a1a1a" },
-  { bg: "#F3C6F1", text: "#1a1a1a" },
-  { bg: "#FDFD96", text: "#1a1a1a" },
-  { bg: "#B4F8C8", text: "#1a1a1a" },
+  { bg: "#FFE066", text: "#1a1a1a" }, { bg: "#6EE6FA", text: "#1a1a1a" },
+  { bg: "#B5F5A0", text: "#1a1a1a" }, { bg: "#FFB347", text: "#1a1a1a" },
+  { bg: "#C3A6FF", text: "#1a1a1a" }, { bg: "#FF8FAB", text: "#1a1a1a" },
+  { bg: "#A0E7E5", text: "#1a1a1a" }, { bg: "#FFC8A2", text: "#1a1a1a" },
+  { bg: "#D4F1F4", text: "#1a1a1a" }, { bg: "#F3C6F1", text: "#1a1a1a" },
+  { bg: "#FDFD96", text: "#1a1a1a" }, { bg: "#B4F8C8", text: "#1a1a1a" },
 ];
 
 const shuffleColors = (count) => {
@@ -41,256 +34,115 @@ const shuffleColors = (count) => {
   return result;
 };
 
-// ─── translations ─────────────────────────────────────────────────────────────
 const translations = {
   en: {
-    revealPhase: "REVEAL PHASE",
-    holdToSee: "Hold to reveal",
-    yourRole: "YOUR ROLE",
-    agent: "AGENT",
-    spy: "SPY",
-    word: "The word is:",
-    cluePhase: "CLUE PHASE",
-    giveClue: "Drop your clue",
-    interrogation: "INTERROGATION",
-    voting: "VOTING",
-    whoIsSpy: "Who is the spy?",
-    results: "RESULTS",
-    agentsWin: "AGENTS WIN!",
-    spiesWin: "SPIES WIN!",
-    playAgain: "PLAY AGAIN",
-    home: "HOME",
-    passTo: "Pass to",
-    startDiscussion: "Start Discussion",
-    timeUp: "Time's Up!",
-    fireQuestions: "Fire your questions!",
-    hiddenRoles: "Hidden Roles:",
-    voterVotes: "votes:",
+    revealPhase: "REVEAL PHASE", holdToSee: "Hold to reveal", yourRole: "YOUR ROLE",
+    agent: "AGENT", spy: "SPY", word: "The word is:", cluePhase: "CLUE PHASE",
+    giveClue: "Drop your clue", interrogation: "INTERROGATION", voting: "VOTING",
+    whoIsSpy: "Who is the spy?", results: "RESULTS", agentsWin: "AGENTS WIN!",
+    spiesWin: "SPIES WIN!", playAgain: "PLAY AGAIN", home: "HOME",
+    passTo: "Pass to", startDiscussion: "Start Discussion", timeUp: "Time's Up!",
+    fireQuestions: "Fire your questions!", hiddenRoles: "Hidden Roles:", voterVotes: "votes:",
   },
   lt: {
-    revealPhase: "ATSKLEIDIMO FAZĖ",
-    holdToSee: "Laikykite atskleidimui",
-    yourRole: "JŪSŲ ROLĖ",
-    agent: "AGENTAS",
-    spy: "ŠNIPAS",
-    word: "Žodis yra:",
-    cluePhase: "UŽUOMINŲ FAZĖ",
-    giveClue: "Meskite užuominą",
-    interrogation: "APIKLAUSA",
-    voting: "BALSUOJIMAS",
-    whoIsSpy: "Kas yra šnipas?",
-    results: "REZULTATAI",
-    agentsWin: "AGENTAI LAIMĖJO!",
-    spiesWin: "ŠNIPAI LAIMĖJO!",
-    playAgain: "ŽAISTI DAR KARTĄ",
-    home: "PRADŽIA",
-    passTo: "Perduokite",
-    startDiscussion: "Pradėti diskusiją",
-    timeUp: "Laikas baigėsi!",
-    fireQuestions: "Užduokite klausimus!",
-    hiddenRoles: "Slaptos rolės:",
-    voterVotes: "balsuoja:",
+    revealPhase: "ATSKLEIDIMO FAZĖ", holdToSee: "Laikykite atskleidimui", yourRole: "JŪSŲ ROLĖ",
+    agent: "AGENTAS", spy: "ŠNIPAS", word: "Žodis yra:", cluePhase: "UŽUOMINŲ FAZĖ",
+    giveClue: "Meskite užuominą", interrogation: "APIKLAUSA", voting: "BALSUOJIMAS",
+    whoIsSpy: "Kas yra šnipas?", results: "REZULTATAI", agentsWin: "AGENTAI LAIMĖJO!",
+    spiesWin: "ŠNIPAI LAIMĖJO!", playAgain: "ŽAISTI DAR KARTĄ", home: "PRADŽIA",
+    passTo: "Perduokite", startDiscussion: "Pradėti diskusiją", timeUp: "Laikas baigėsi!",
+    fireQuestions: "Užduokite klausimus!", hiddenRoles: "Slaptos rolės:", voterVotes: "balsuoja:",
   },
 };
 
 export default function GameScreen({ navigation, route }) {
   const { colors, isDarkMode } = useTheme();
-
   const {
-    players = [],
-    secretWord,
-    imposterIndices = [],
-    clueAssist = false,
-    category,
-    language = "en",
-    timeLimit = false,
-    timePerPerson = 15,
+    players = [], secretWord, imposterIndices = [], clueAssist = false,
+    category, language = "en", timeLimit = false, timePerPerson = 15, numImposters = 1, usedWords = [],
   } = route.params || {};
-
   const t = translations[language] || translations.en;
-
-  // assign colours once on mount
   const [playerColors] = useState(() => shuffleColors(players.length));
-
   const [phase, setPhase] = useState("reveal");
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [isHoldingReveal, setIsHoldingReveal] = useState(false);
   const [hasRevealedThisPlayer, setHasRevealedThisPlayer] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
-
-  const defaultTimedSeconds = useMemo(
-    () => (timeLimit ? timePerPerson : 30),
-    [timeLimit, timePerPerson]
-  );
+  const defaultTimedSeconds = useMemo(() => (timeLimit ? timePerPerson : 30), [timeLimit, timePerPerson]);
   const [timeLeft, setTimeLeft] = useState(defaultTimedSeconds);
   const [clues, setClues] = useState([]);
   const [pressedButton, setPressedButton] = useState(null);
   const [votes, setVotes] = useState({});
   const [voterIndex, setVoterIndex] = useState(0);
-
-  // animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const holdExpandAnim = useRef(new Animated.Value(1)).current;
   const holdExpandRef = useRef(null);
-
   const isCurrentPlayerSpy = imposterIndices.includes(currentPlayerIndex);
   const currentColor = playerColors[currentPlayerIndex] ?? { bg: "#FFE066", text: "#1a1a1a" };
-
   const styles = useMemo(() => getStyles(colors, isDarkMode), [colors, isDarkMode]);
 
-  // idle pulse + glow
   useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    const glow = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    glow.start();
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(pulseAnim, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    const glow = Animated.loop(Animated.sequence([
+      Animated.timing(glowAnim, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(glowAnim, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    pulse.start(); glow.start();
     return () => { pulse.stop(); glow.stop(); };
   }, [pulseAnim, glowAnim]);
 
   const startHoldExpand = () => {
-    holdExpandRef.current = Animated.timing(holdExpandAnim, {
-      toValue: 1.18,
-      duration: 3000,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    });
+    holdExpandRef.current = Animated.timing(holdExpandAnim, { toValue: 1.18, duration: 3000, easing: Easing.out(Easing.quad), useNativeDriver: true });
     holdExpandRef.current.start();
   };
-
   const stopHoldExpand = () => {
     if (holdExpandRef.current) holdExpandRef.current.stop();
-    Animated.spring(holdExpandAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 5,
-    }).start();
+    Animated.spring(holdExpandAnim, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
   };
-
   const resetTimer = () => setTimeLeft(defaultTimedSeconds);
 
   useEffect(() => {
     const isTimedPhase = phase === "clues" || phase === "interrogation";
     if (!isTimedPhase) return;
-    if (timeLeft <= 0) {
-      if (phase === "clues") submitClue(t.timeUp);
-      else startVoting();
-      return;
-    }
+    if (timeLeft <= 0) { if (phase === "clues") submitClue(t.timeUp); else startVoting(); return; }
     const id = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearTimeout(id);
   }, [phase, timeLeft]);
 
-  // ─── reveal flow ──────────────────────────────────────────────────────────
-  const handleRevealPressIn = () => {
-    if (isPassing) return;
-    setIsHoldingReveal(true);
-    setHasRevealedThisPlayer(true);
-    startHoldExpand();
-  };
-
-  const handleRevealPressOut = () => {
-    setIsHoldingReveal(false);
-    stopHoldExpand();
-  };
+  const handleRevealPressIn = () => { if (isPassing) return; setIsHoldingReveal(true); setHasRevealedThisPlayer(true); startHoldExpand(); };
+  const handleRevealPressOut = () => { setIsHoldingReveal(false); stopHoldExpand(); };
 
   const handlePassNext = () => {
-    if (!hasRevealedThisPlayer) return;
-    if (isPassing) return;
-    if (isHoldingReveal) return;
-
-    setIsPassing(true);
-    setIsHoldingReveal(false);
-
+    if (!hasRevealedThisPlayer || isPassing || isHoldingReveal) return;
+    setIsPassing(true); setIsHoldingReveal(false);
     setTimeout(() => {
       const isLastPlayer = currentPlayerIndex >= players.length - 1;
-
-      if (!isLastPlayer) {
-        setCurrentPlayerIndex((prev) => prev + 1);
-        setHasRevealedThisPlayer(false);
-        setIsPassing(false);
-        return;
-      }
-
-      setHasRevealedThisPlayer(false);
-      setIsPassing(false);
-
+      if (!isLastPlayer) { setCurrentPlayerIndex((prev) => prev + 1); setHasRevealedThisPlayer(false); setIsPassing(false); return; }
+      setHasRevealedThisPlayer(false); setIsPassing(false);
       navigation.replace("Discussion", {
-        players,
-        language,
-        categoryId: category?.id ?? null,
-        categoryName: category?.name ?? category ?? null,
-        word: secretWord,
-        imposterIndices,
-        spyIndex: Array.isArray(imposterIndices) ? imposterIndices[0] : null,
-        timeLimit,
-        timePerPerson,
+        players, language, categoryId: category ?? null, categoryName: category ?? null,
+        word: secretWord, imposterIndices, spyIndex: Array.isArray(imposterIndices) ? imposterIndices[0] : null,
+        timeLimit, timePerPerson, numImposters, usedWords,
       });
     }, 150);
   };
 
-  // ─── clues ────────────────────────────────────────────────────────────────
   const submitClue = (clueText) => {
     setClues((prev) => [...prev, { player: players[currentPlayerIndex], clue: clueText }]);
     const isLastPlayer = currentPlayerIndex >= players.length - 1;
-    if (!isLastPlayer) {
-      setCurrentPlayerIndex((prev) => prev + 1);
-      resetTimer();
-      return;
-    }
-    setCurrentPlayerIndex(0);
-    setPhase("interrogation");
-    resetTimer();
+    if (!isLastPlayer) { setCurrentPlayerIndex((prev) => prev + 1); resetTimer(); return; }
+    setCurrentPlayerIndex(0); setPhase("interrogation"); resetTimer();
   };
-
-  // ─── voting ───────────────────────────────────────────────────────────────
-  const startVoting = () => {
-    setPhase("voting");
-    setVotes({});
-    setVoterIndex(0);
-  };
-
+  const startVoting = () => { setPhase("voting"); setVotes({}); setVoterIndex(0); };
   const voteForPlayer = (suspectIndex) => {
     if (suspectIndex === voterIndex) return;
-    setVotes((prev) => {
-      const next = { ...prev };
-      next[suspectIndex] = (next[suspectIndex] || 0) + 1;
-      return next;
-    });
-    if (voterIndex >= players.length - 1) setPhase("results");
-    else setVoterIndex((prev) => prev + 1);
+    setVotes((prev) => { const next = { ...prev }; next[suspectIndex] = (next[suspectIndex] || 0) + 1; return next; });
+    if (voterIndex >= players.length - 1) setPhase("results"); else setVoterIndex((prev) => prev + 1);
   };
-
   const getWinner = () => {
     const voteValues = Object.values(votes);
     if (voteValues.length === 0) return "spies";
@@ -299,112 +151,62 @@ export default function GameScreen({ navigation, route }) {
     if (mostVotedKey == null) return "spies";
     return imposterIndices.includes(parseInt(mostVotedKey, 10)) ? "agents" : "spies";
   };
-
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.75] });
   const isLastPlayer = currentPlayerIndex >= players.length - 1;
 
-  // ─── render reveal ────────────────────────────────────────────────────────
   const renderRevealPhase = () => (
-    // Outer container is relative so the absolute card can anchor to it
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.revealPhase}</Text>
       <Text style={styles.playerName}>{players[currentPlayerIndex]}</Text>
-
-      {/* Fixed-size slot that reserves space — card floats absolutely inside */}
       <View style={styles.cardSlot}>
         {isHoldingReveal && (
-          <View
-            style={[styles.roleCard, { backgroundColor: currentColor.bg }]}
-            pointerEvents="none"
-          >
+          <View style={[styles.roleCard, { backgroundColor: currentColor.bg }]} pointerEvents="none">
             <Text style={[styles.roleTitle, { color: currentColor.text }]}>{t.yourRole}</Text>
-            <Text style={[
-              styles.roleText,
-              isCurrentPlayerSpy ? styles.spyText : styles.agentText,
-            ]}>
+            <Text style={[styles.roleText, isCurrentPlayerSpy ? styles.spyText : styles.agentText]}>
               {isCurrentPlayerSpy ? t.spy : t.agent}
             </Text>
-
             {!isCurrentPlayerSpy && (
               <View style={[styles.wordBox, { borderColor: currentColor.text + "44" }]}>
                 <Text style={[styles.wordLabel, { color: currentColor.text }]}>{t.word}</Text>
                 <Text style={[styles.wordText, { color: currentColor.text }]}>{secretWord}</Text>
               </View>
             )}
-
             {isCurrentPlayerSpy && clueAssist && (
               <View style={[styles.hintBox, { borderColor: currentColor.text + "44" }]}>
-                <Text style={[styles.hintLabel, { color: currentColor.text }]}>
-                  Category: {category?.name ?? category ?? "-"}
-                </Text>
+                <Text style={[styles.hintLabel, { color: currentColor.text }]}>Category: {category?.name ?? category ?? "-"}</Text>
               </View>
             )}
           </View>
         )}
       </View>
-
-      {/* ── hold to reveal circle button — position never changes ── */}
       <View style={styles.revealButtonWrapper}>
         <Animated.View style={{ transform: [{ scale: isHoldingReveal ? 1 : pulseAnim }] }}>
           <Animated.View style={{ transform: [{ scale: holdExpandAnim }] }}>
-            <TouchableOpacity
-              style={[styles.revealButton, isPassing && { opacity: 0.7 }]}
-              onPressIn={handleRevealPressIn}
-              onPressOut={handleRevealPressOut}
-              activeOpacity={0.95}
-              disabled={isPassing}
-            >
-              {isDarkMode && (
-                <Animated.View style={[styles.revealGlow, { opacity: glowOpacity }]} />
-              )}
-              <Ionicons name="eye" size={40} color="#fff" />
+            <TouchableOpacity style={[styles.revealButton, isPassing && { opacity: 0.7 }]} onPressIn={handleRevealPressIn} onPressOut={handleRevealPressOut} activeOpacity={0.95} disabled={isPassing}>
+              {isDarkMode && <Animated.View style={[styles.revealGlow, { opacity: glowOpacity }]} />}
+              <Ionicons name="eye" size={44} color="#fff" />
               <Text style={styles.revealText}>{t.holdToSee}</Text>
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
       </View>
-
-      {/* ── pass / start discussion button ── */}
-      <TouchableOpacity
-        style={[
-          styles.passButton,
-          (!hasRevealedThisPlayer || isPassing || isHoldingReveal) && styles.passButtonDisabled,
-        ]}
-        onPress={handlePassNext}
-        disabled={!hasRevealedThisPlayer || isPassing || isHoldingReveal}
-        activeOpacity={0.9}
-      >
-        <Ionicons name={isLastPlayer ? "play" : "swap-horizontal"} size={20} color={isDarkMode ? "#fff" : "#fff"} />
-        <Text style={styles.passButtonText}>
-          {isLastPlayer
-            ? t.startDiscussion
-            : `${t.passTo} ${players[(currentPlayerIndex + 1) % players.length]}`}
-        </Text>
+      <TouchableOpacity style={[styles.passButton, (!hasRevealedThisPlayer || isPassing || isHoldingReveal) && styles.passButtonDisabled]} onPress={handlePassNext} disabled={!hasRevealedThisPlayer || isPassing || isHoldingReveal} activeOpacity={0.9}>
+        <Ionicons name={isLastPlayer ? "play" : "swap-horizontal"} size={22} color="#fff" />
+        <Text style={styles.passButtonText}>{isLastPlayer ? t.startDiscussion : `${t.passTo} ${players[(currentPlayerIndex + 1) % players.length]}`}</Text>
       </TouchableOpacity>
     </View>
   );
 
-  // ─── render clues ─────────────────────────────────────────────────────────
   const renderCluesPhase = () => (
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.cluePhase}</Text>
       <Text style={styles.playerName}>{players[currentPlayerIndex]}</Text>
-
       {timeLimit && (
         <View style={styles.timerContainerSmall}>
           <Text style={[styles.timerTextSmall, timeLeft <= 5 && styles.timerWarning]}>{timeLeft}s</Text>
-          <View style={styles.timerBarSmall}>
-            <View
-              style={[
-                styles.timerFillSmall,
-                { width: `${Math.max(0, (timeLeft / timePerPerson) * 100)}%` },
-                timeLeft <= 5 && styles.timerFillWarning,
-              ]}
-            />
-          </View>
+          <View style={styles.timerBarSmall}><View style={[styles.timerFillSmall, { width: `${Math.max(0, (timeLeft / timePerPerson) * 100)}%` }, timeLeft <= 5 && styles.timerFillWarning]} /></View>
         </View>
       )}
-
       <View style={styles.cluesList}>
         {clues.map((c, i) => (
           <View key={i} style={styles.clueItem}>
@@ -413,19 +215,10 @@ export default function GameScreen({ navigation, route }) {
           </View>
         ))}
       </View>
-
       <Text style={styles.clueLabel}>{t.giveClue}</Text>
-
       <View style={styles.clueButtons}>
         {["Good", "Bad", "Weird", "Funny", "Smart"].map((clue) => (
-          <TouchableOpacity
-            key={clue}
-            style={[styles.clueButton, pressedButton === clue && styles.clueButtonPressed]}
-            onPress={() => submitClue(clue)}
-            onPressIn={() => setPressedButton(clue)}
-            onPressOut={() => setPressedButton(null)}
-            activeOpacity={0.9}
-          >
+          <TouchableOpacity key={clue} style={[styles.clueButton, pressedButton === clue && styles.clueButtonPressed]} onPress={() => submitClue(clue)} onPressIn={() => setPressedButton(clue)} onPressOut={() => setPressedButton(null)} activeOpacity={0.9}>
             <Text style={styles.clueButtonText}>{clue}</Text>
           </TouchableOpacity>
         ))}
@@ -433,53 +226,28 @@ export default function GameScreen({ navigation, route }) {
     </View>
   );
 
-  // ─── render interrogation ─────────────────────────────────────────────────
   const renderInterrogation = () => (
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.interrogation}</Text>
       <Text style={styles.playerName}>{players[currentPlayerIndex]}</Text>
-
       <View style={styles.timerContainer}>
         <Text style={[styles.timerText, timeLeft <= 10 && styles.timerWarning]}>{timeLeft}s</Text>
-        <View style={styles.timerBar}>
-          <View
-            style={[
-              styles.timerFill,
-              { width: `${Math.max(0, (timeLeft / defaultTimedSeconds) * 100)}%` },
-              timeLeft <= 10 && styles.timerFillWarning,
-            ]}
-          />
-        </View>
+        <View style={styles.timerBar}><View style={[styles.timerFill, { width: `${Math.max(0, (timeLeft / defaultTimedSeconds) * 100)}%` }, timeLeft <= 10 && styles.timerFillWarning]} /></View>
       </View>
-
       <Text style={styles.interrogationText}>{t.fireQuestions}</Text>
     </View>
   );
 
-  // ─── render voting ────────────────────────────────────────────────────────
   const renderVoting = () => (
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.voting}</Text>
       <Text style={styles.votingText}>{t.whoIsSpy}</Text>
-      <Text style={styles.voterName}>
-        {players[voterIndex]} {t.voterVotes}
-      </Text>
-
+      <Text style={styles.voterName}>{players[voterIndex]} {t.voterVotes}</Text>
       <View style={styles.votingGrid}>
         {players.map((player, index) => {
           if (index === voterIndex) return null;
           return (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.voteButton,
-                pressedButton === `vote${index}` && styles.voteButtonPressed,
-              ]}
-              onPress={() => voteForPlayer(index)}
-              onPressIn={() => setPressedButton(`vote${index}`)}
-              onPressOut={() => setPressedButton(null)}
-              activeOpacity={0.9}
-            >
+            <TouchableOpacity key={index} style={[styles.voteButton, pressedButton === `vote${index}` && styles.voteButtonPressed]} onPress={() => voteForPlayer(index)} onPressIn={() => setPressedButton(`vote${index}`)} onPressOut={() => setPressedButton(null)} activeOpacity={0.9}>
               <Text style={styles.voteButtonText}>{player}</Text>
             </TouchableOpacity>
           );
@@ -488,43 +256,23 @@ export default function GameScreen({ navigation, route }) {
     </View>
   );
 
-  // ─── render results ───────────────────────────────────────────────────────
   const renderResults = () => {
     const winner = getWinner();
     return (
       <View style={styles.phaseContainer}>
         <Text style={styles.phaseTitle}>{t.results}</Text>
-
         <View style={[styles.winnerCard, winner === "agents" ? styles.agentWinCard : styles.spyWinCard]}>
-          <Text style={[styles.winnerText, winner === "agents" ? styles.agentWinText : styles.spyWinText]}>
-            {winner === "agents" ? t.agentsWin : t.spiesWin}
-          </Text>
+          <Text style={[styles.winnerText, winner === "agents" ? styles.agentWinText : styles.spyWinText]}>{winner === "agents" ? t.agentsWin : t.spiesWin}</Text>
         </View>
-
         <View style={styles.revealResultCard}>
           <Text style={styles.revealTitle}>{t.word}</Text>
           <Text style={styles.revealWord}>{secretWord}</Text>
           <Text style={styles.spiesTitle}>{t.hiddenRoles}</Text>
-          {imposterIndices.map((idx) => (
-            <Text key={idx} style={styles.spyName}>🕵️ {players[idx]}</Text>
-          ))}
+          {imposterIndices.map((idx) => (<Text key={idx} style={styles.spyName}>🕵️ {players[idx]}</Text>))}
         </View>
-
         <View style={styles.resultButtons}>
-          <TouchableOpacity
-            style={styles.resultButton}
-            onPress={() => navigation.replace("CreateRoom", { language })}
-            activeOpacity={0.9}
-          >
-            <Text style={styles.resultButtonText}>{t.playAgain}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.resultButton, styles.homeButton]}
-            onPress={() => navigation.navigate("Home", { language })}
-            activeOpacity={0.9}
-          >
-            <Text style={styles.resultButtonText}>{t.home}</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={styles.resultButton} onPress={() => navigation.replace("CreateRoom", { language })} activeOpacity={0.9}><Text style={styles.resultButtonText}>{t.playAgain}</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.resultButton, styles.homeButton]} onPress={() => navigation.navigate("Home", { language })} activeOpacity={0.9}><Text style={styles.resultButtonText}>{t.home}</Text></TouchableOpacity>
         </View>
       </View>
     );
@@ -532,10 +280,7 @@ export default function GameScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle={isDarkMode ? "light-content" : "dark-content"}
-        backgroundColor={colors.background}
-      />
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {phase === "reveal" && renderRevealPhase()}
         {phase === "clues" && renderCluesPhase()}
@@ -547,310 +292,72 @@ export default function GameScreen({ navigation, route }) {
   );
 }
 
-// ─── styles ───────────────────────────────────────────────────────────────────
 const getStyles = (colors, isDarkMode) => {
   const border = isDarkMode ? "#ffffff" : "#000000";
-
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     scrollContent: { flexGrow: 1, padding: 20 },
-
-    phaseContainer: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingTop: 40,
-      paddingBottom: 100, // space for absolutely-positioned pass button
-    },
-    phaseTitle: {
-      fontSize: 16,
-      fontWeight: "800",
-      color: colors.text,
-      letterSpacing: 4,
-      marginBottom: 20,
-    },
-    playerName: {
-      fontSize: 26,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 25,
-    },
-
-    // ── card slot: fixed height so the button never moves ──
-    cardSlot: {
-      width: "100%",
-      height: 220,         // tall enough for the card; empty space when hidden
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 20,
-    },
-
-    // ── coloured role card ──
-    roleCard: {
-      padding: 28,
-      borderRadius: 20,
-      alignItems: "center",
-      width: "90%",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 6,
-    },
-    roleTitle: {
-      fontSize: 11,
-      marginBottom: 10,
-      letterSpacing: 3,
-      fontWeight: "700",
-    },
-    roleText: {
-      fontSize: 22,
-      fontWeight: "800",
-      marginBottom: 12,
-      letterSpacing: 2,
-    },
+    phaseContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 40, paddingBottom: 100 },
+    phaseTitle: { fontSize: 18, fontWeight: "800", color: colors.text, letterSpacing: 4, marginBottom: 20 },
+    playerName: { fontSize: 30, fontWeight: "800", color: colors.text, marginBottom: 25 },
+    cardSlot: { width: "100%", height: 220, alignItems: "center", justifyContent: "center", marginBottom: 20 },
+    roleCard: { padding: 28, borderRadius: 20, alignItems: "center", width: "90%", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 6 },
+    roleTitle: { fontSize: 13, marginBottom: 10, letterSpacing: 3, fontWeight: "700" },
+    roleText: { fontSize: 26, fontWeight: "800", marginBottom: 12, letterSpacing: 2 },
     agentText: { color: "#00aa55" },
     spyText: { color: "#cc0000" },
-
-    wordBox: {
-      backgroundColor: "rgba(255,255,255,0.4)",
-      padding: 18,
-      borderRadius: 14,
-      alignItems: "center",
-      borderWidth: 2,
-    },
-    wordLabel: {
-      fontSize: 12,
-      marginBottom: 5,
-      letterSpacing: 2,
-      fontWeight: "600",
-    },
-    wordText: {
-      fontSize: 28,
-      fontWeight: "900",
-      letterSpacing: 2,
-    },
-
-    hintBox: {
-      padding: 14,
-      borderRadius: 12,
-      marginTop: 10,
-      borderWidth: 2,
-      backgroundColor: "rgba(255,255,255,0.3)",
-    },
-    hintLabel: {
-      fontWeight: "700",
-      fontSize: 13,
-    },
-
-    // ── hold button ──
+    wordBox: { backgroundColor: "rgba(255,255,255,0.4)", padding: 18, borderRadius: 14, alignItems: "center", borderWidth: 2 },
+    wordLabel: { fontSize: 13, marginBottom: 5, letterSpacing: 2, fontWeight: "600" },
+    wordText: { fontSize: 30, fontWeight: "900", letterSpacing: 2 },
+    hintBox: { padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 2, backgroundColor: "rgba(255,255,255,0.3)" },
+    hintLabel: { fontWeight: "700", fontSize: 15 },
     revealButtonWrapper: { zIndex: 2, marginBottom: 20 },
-    revealButton: {
-      backgroundColor: colors.primary,
-      width: 180,
-      height: 180,
-      borderRadius: 90,
-      justifyContent: "center",
-      alignItems: "center",
-      position: "relative",
-      overflow: "hidden",
-      borderWidth: 2,
-      borderColor: border,
-    },
-    revealGlow: {
-      position: "absolute",
-      width: "100%",
-      height: "100%",
-      backgroundColor: colors.primary,
-    },
-    revealText: {
-      color: "#fff",
-      fontWeight: "700",
-      marginTop: 10,
-      fontSize: 13,
-      letterSpacing: 1,
-    },
-
-    // ── pass button ──
-    passButton: {
-      position: "absolute",
-      bottom: 30,
-      left: 20,
-      right: 20,
-      backgroundColor: colors.primary,
-      paddingVertical: 14,
-      paddingHorizontal: 18,
-      borderRadius: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      borderWidth: 2,
-      borderColor: border,
-    },
+    revealButton: { backgroundColor: colors.primary, width: 180, height: 180, borderRadius: 90, justifyContent: "center", alignItems: "center", position: "relative", overflow: "hidden", borderWidth: 2, borderColor: border },
+    revealGlow: { position: "absolute", width: "100%", height: "100%", backgroundColor: colors.primary },
+    revealText: { color: "#fff", fontWeight: "700", marginTop: 10, fontSize: 15, letterSpacing: 1 },
+    passButton: { position: "absolute", bottom: 30, left: 20, right: 20, backgroundColor: colors.primary, paddingVertical: 16, paddingHorizontal: 18, borderRadius: 14, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 2, borderColor: border },
     passButtonDisabled: { opacity: 0.5 },
-    passButtonText: {
-      color: "#fff",
-      fontWeight: "800",
-      fontSize: 14,
-      letterSpacing: 1,
-    },
-
-    // ── timer ──
+    passButtonText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 1 },
     timerContainer: { alignItems: "center", marginBottom: 30 },
-    timerText: {
-      fontSize: 72,
-      fontWeight: "900",
-      color: colors.text,
-      marginBottom: 20,
-    },
+    timerText: { fontSize: 80, fontWeight: "900", color: colors.text, marginBottom: 20 },
     timerWarning: { color: "#ff1a1a" },
-    timerBar: {
-      width: 250,
-      height: 6,
-      backgroundColor: isDarkMode ? "#333" : "#cccccc",
-      borderRadius: 3,
-      overflow: "hidden",
-    },
+    timerBar: { width: 250, height: 6, backgroundColor: isDarkMode ? "#333" : "#cccccc", borderRadius: 3, overflow: "hidden" },
     timerFill: { height: "100%", backgroundColor: colors.primary },
     timerFillWarning: { backgroundColor: "#ff1a1a" },
     timerContainerSmall: { width: "100%", marginBottom: 20, alignItems: "center" },
-    timerTextSmall: {
-      fontSize: 24,
-      fontWeight: "800",
-      color: colors.text,
-      marginBottom: 10,
-    },
-    timerBarSmall: {
-      width: "80%",
-      height: 6,
-      backgroundColor: isDarkMode ? "#333" : "#cccccc",
-      borderRadius: 3,
-      overflow: "hidden",
-    },
+    timerTextSmall: { fontSize: 28, fontWeight: "800", color: colors.text, marginBottom: 10 },
+    timerBarSmall: { width: "80%", height: 6, backgroundColor: isDarkMode ? "#333" : "#cccccc", borderRadius: 3, overflow: "hidden" },
     timerFillSmall: { height: "100%", backgroundColor: colors.primary },
-
-    // ── clues ──
     cluesList: { width: "100%", marginBottom: 25 },
-    clueItem: {
-      backgroundColor: colors.surface,
-      padding: 16,
-      borderRadius: 14,
-      marginBottom: 10,
-      borderWidth: 2,
-      borderColor: border,
-    },
-    cluePlayer: {
-      color: colors.text,
-      fontWeight: "700",
-      marginBottom: 5,
-      fontSize: 13,
-    },
-    clueText: {
-      color: colors.text,
-      fontSize: 18,
-      fontStyle: "italic",
-    },
-    clueLabel: {
-      color: colors.text,
-      marginBottom: 20,
-      fontSize: 14,
-      letterSpacing: 2,
-    },
-    clueButtons: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "center",
-      gap: 10,
-    },
-    clueButton: {
-      backgroundColor: colors.primary,
-      paddingVertical: 14,
-      paddingHorizontal: 24,
-      borderRadius: 25,
-      borderWidth: 2,
-      borderColor: border,
-    },
+    clueItem: { backgroundColor: colors.surface, padding: 16, borderRadius: 14, marginBottom: 10, borderWidth: 2, borderColor: border },
+    cluePlayer: { color: colors.text, fontWeight: "700", marginBottom: 5, fontSize: 15 },
+    clueText: { color: colors.text, fontSize: 20, fontStyle: "italic" },
+    clueLabel: { color: colors.text, marginBottom: 20, fontSize: 16, letterSpacing: 2 },
+    clueButtons: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
+    clueButton: { backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 25, borderWidth: 2, borderColor: border },
     clueButtonPressed: { transform: [{ scale: 0.95 }] },
-    clueButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-
-    interrogationText: {
-      color: colors.text,
-      fontSize: 18,
-      fontStyle: "italic",
-    },
-
-    // ── voting ──
-    votingText: { fontSize: 18, color: colors.text, marginBottom: 15 },
-    voterName: { fontSize: 14, color: colors.text, marginBottom: 25 },
+    clueButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+    interrogationText: { color: colors.text, fontSize: 20, fontStyle: "italic" },
+    votingText: { fontSize: 20, color: colors.text, marginBottom: 15 },
+    voterName: { fontSize: 16, color: colors.text, marginBottom: 25 },
     votingGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 12 },
-    voteButton: {
-      backgroundColor: colors.surface,
-      paddingVertical: 16,
-      paddingHorizontal: 28,
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: border,
-      minWidth: 120,
-      alignItems: "center",
-    },
+    voteButton: { backgroundColor: colors.surface, paddingVertical: 16, paddingHorizontal: 28, borderRadius: 14, borderWidth: 2, borderColor: border, minWidth: 120, alignItems: "center" },
     voteButtonPressed: { transform: [{ scale: 0.97 }], borderColor: colors.primary },
-    voteButtonText: { color: colors.text, fontWeight: "700", fontSize: 16 },
-
-    // ── results ──
+    voteButtonText: { color: colors.text, fontWeight: "700", fontSize: 18 },
     winnerCard: { padding: 30, borderRadius: 20, marginBottom: 25, borderWidth: 2 },
     agentWinCard: { backgroundColor: "#00ff88" + "15", borderColor: "#00ff88" },
     spyWinCard: { backgroundColor: "#ff1a1a" + "15", borderColor: "#ff1a1a" },
-    winnerText: { fontSize: 24, fontWeight: "900", textAlign: "center", letterSpacing: 3 },
+    winnerText: { fontSize: 26, fontWeight: "900", textAlign: "center", letterSpacing: 3 },
     agentWinText: { color: "#00ff88" },
     spyWinText: { color: "#ff1a1a" },
-    revealResultCard: {
-      backgroundColor: colors.surface,
-      padding: 30,
-      borderRadius: 20,
-      alignItems: "center",
-      marginBottom: 25,
-      borderWidth: 2,
-      borderColor: border,
-      width: "100%",
-    },
-    revealTitle: {
-      color: colors.text,
-      fontSize: 13,
-      marginBottom: 10,
-      letterSpacing: 2,
-    },
-    revealWord: {
-      color: colors.text,
-      fontSize: 32,
-      fontWeight: "800",
-      marginBottom: 20,
-    },
-    spiesTitle: {
-      color: colors.text,
-      fontSize: 13,
-      marginBottom: 10,
-      letterSpacing: 2,
-    },
-    spyName: { color: "#ff1a1a", fontSize: 18, fontWeight: "700" },
+    revealResultCard: { backgroundColor: colors.surface, padding: 30, borderRadius: 20, alignItems: "center", marginBottom: 25, borderWidth: 2, borderColor: border, width: "100%" },
+    revealTitle: { color: colors.text, fontSize: 15, marginBottom: 10, letterSpacing: 2 },
+    revealWord: { color: colors.text, fontSize: 36, fontWeight: "800", marginBottom: 20 },
+    spiesTitle: { color: colors.text, fontSize: 15, marginBottom: 10, letterSpacing: 2 },
+    spyName: { color: "#ff1a1a", fontSize: 20, fontWeight: "700" },
     resultButtons: { flexDirection: "row", gap: 15 },
-    resultButton: {
-      backgroundColor: colors.primary,
-      paddingVertical: 16,
-      paddingHorizontal: 28,
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: border,
-    },
-    homeButton: {
-      backgroundColor: colors.surface,
-      borderWidth: 2,
-      borderColor: border,
-    },
-    resultButtonText: {
-      color: colors.text,
-      fontWeight: "800",
-      fontSize: 14,
-      letterSpacing: 2,
-    },
+    resultButton: { backgroundColor: colors.primary, paddingVertical: 16, paddingHorizontal: 28, borderRadius: 14, borderWidth: 2, borderColor: border },
+    homeButton: { backgroundColor: colors.surface, borderWidth: 2, borderColor: border },
+    resultButtonText: { color: colors.text, fontWeight: "800", fontSize: 16, letterSpacing: 2 },
   });
 };

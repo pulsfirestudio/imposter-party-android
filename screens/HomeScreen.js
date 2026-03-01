@@ -14,9 +14,12 @@ import {
   Dimensions,
   StatusBar,
   Linking,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { lightHaptic, mediumHaptic, heavyHaptic, errorHaptic } from "../utils/HapticsManager";
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,6 +29,7 @@ const translations = {
     tagline: 'Lies. Clues. Chaos.',
     newGame: 'NEW GAME',
     howToPlay: 'HOW TO PLAY',
+    rateAndShare: 'RATE & SHARE',
     language: 'LANGUAGE',
     leaveReview: 'LEAVE A REVIEW',
     supportShare: 'SUPPORT & SHARE',
@@ -35,6 +39,7 @@ const translations = {
     tagline: 'Melas. Užuominos. Chaosas.',
     newGame: 'NAUJAS ŽAIDIMAS',
     howToPlay: 'KAIP ŽAISTI',
+    rateAndShare: 'ĮVERTINK IR DALINKIS',
     language: 'KALBA',
     leaveReview: 'PALIKTI ATSILIEPIMĄ',
     supportShare: 'PALAIKYK IR DALINKIS',
@@ -67,7 +72,8 @@ const Particle = ({ delay, colors, screenWidth, screenHeight }) => {
       ])
     );
     animation.start();
-    return () => animation.stop();
+
+  return () => animation.stop();
   }, []);
 
   const particleColor = Math.random() > 0.5 ? colors.primary : colors.accent;
@@ -125,18 +131,15 @@ export default function HomeScreen({ navigation, route }) {
   const t = translations[lang];
 
   const glowAnim = useRef(new Animated.Value(0)).current;
-  // Pulse: smaller range so it doesn't reach screen edges
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const flickerAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Same sine easing as pulse — red breathes in sync with the scale
     Animated.loop(Animated.sequence([
       Animated.timing(glowAnim, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       Animated.timing(glowAnim, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ])).start();
 
-    // Smooth sine-wave: 0->1->0 maps to scale 0.93->1.07, perfectly continuous
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -154,24 +157,24 @@ export default function HomeScreen({ navigation, route }) {
     flicker();
   }, []);
 
-  // Breathes between slightly dark and slightly lighter red — always visible, never transparent
+  const handleRateAndShare = async () => {
+    try {
+      await Share.share({
+        message: 'Check out Spy Room - the ultimate party game! 🕵️ Download it here: https://apps.apple.com/app/idYOUR_APP_ID',
+        url: 'https://apps.apple.com/app/idYOUR_APP_ID',
+      });
+    } catch (e) {
+      Linking.openURL('https://apps.apple.com/app/idYOUR_APP_ID');
+    }
+  };
+
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.85] });
-  // Maps 0->1->0 sine wave to scale 0.93->1.07->0.93 — perfectly smooth, no jump
   const pulseScale = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1.07] });
   const styles = getStyles(colors, isDarkMode, glowOpacity, lang);
 
   const particles = Array.from({ length: 15 }, (_, i) => (
     <Particle key={i} delay={i * 500} colors={colors} screenWidth={width} screenHeight={height} />
   ));
-
-  const handleReview = () => {
-    // Replace with your actual App Store / Play Store URL
-    Linking.openURL('https://apps.apple.com/app/idYOUR_APP_ID');
-  };
-
-  const handleSupportShare = () => {
-    Linking.openURL('mailto:support@spyroom.app?subject=Support');
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -183,8 +186,8 @@ export default function HomeScreen({ navigation, route }) {
           <TouchableOpacity style={styles.themeToggle} onPress={toggleTheme} activeOpacity={0.7}>
             <Ionicons name={isDarkMode ? 'sunny' : 'moon'} size={22} color={isDarkMode ? '#fff' : '#000'} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.languageButton} onPress={() => navigation.navigate('SelectLanguage', { currentLang: lang })}>
-            <Text style={styles.flagText}>{lang === 'lt' ? '🇱🇹' : '🇬🇧'}</Text>
+          <TouchableOpacity style={styles.languageButton} onPress={() => navigation.navigate('Settings', { language: lang })} activeOpacity={0.7}>
+            <Ionicons name="settings-outline" size={22} color={isDarkMode ? '#fff' : '#000'} />
           </TouchableOpacity>
         </View>
 
@@ -192,49 +195,33 @@ export default function HomeScreen({ navigation, route }) {
           <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain" />
 
           <Animated.View style={[styles.titleWrapper, { transform: [{ scale: pulseScale }] }]}>
-            {/* Red bg pulses opacity smoothly — wider than text, no flicker */}
             <Animated.View style={[styles.titleGlowBg, { opacity: glowOpacity }]} />
-            {/* Flicker only on the text, not the background */}
             <Animated.Text style={[styles.title, { opacity: flickerAnim }]}>{t.title}</Animated.Text>
           </Animated.View>
 
-          {/* Tagline: cyan in dark, deep indigo in light so it's visible on white */}
           <Text style={styles.tagline}>{t.tagline}</Text>
         </View>
 
         <View style={styles.buttonContainer}>
-          <AnimatedButton style={styles.mainButton} onPress={() => navigation.navigate('CreateRoom', { language: lang })} colors={colors} isDarkMode={isDarkMode}>
+          <AnimatedButton style={styles.mainButton} onPress={() => { mediumHaptic(); navigation.navigate('CreateRoom', { language: lang }); }} colors={colors} isDarkMode={isDarkMode}>
             <Text style={styles.buttonText}>{t.newGame}</Text>
             <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />
           </AnimatedButton>
 
-          {/* HOW TO PLAY — icon left, empty right slot */}
-          <AnimatedButton style={styles.secondaryButton} onPress={() => navigation.navigate('HowToPlay', { language: lang })} colors={colors} isDarkMode={isDarkMode} secondary>
+          <AnimatedButton style={styles.secondaryButton} onPress={() => { lightHaptic(); navigation.navigate('HowToPlay', { language: lang }); }} colors={colors} isDarkMode={isDarkMode} secondary>
             <View style={styles.btnSlot}><Ionicons name="help-circle-outline" size={20} color={isDarkMode ? '#fff' : '#000'} /></View>
             <Text style={styles.secondaryButtonText}>{t.howToPlay}</Text>
             <View style={styles.btnSlot} />
           </AnimatedButton>
 
-          {/* LANGUAGE — icon left, flag right */}
-          <AnimatedButton style={styles.secondaryButton} onPress={() => navigation.navigate('SelectLanguage', { currentLang: lang })} colors={colors} isDarkMode={isDarkMode} secondary>
-            <View style={styles.btnSlot}><Ionicons name="globe-outline" size={20} color={isDarkMode ? '#fff' : '#000'} /></View>
-            <Text style={styles.secondaryButtonText}>{t.language}</Text>
-            <View style={styles.btnSlot}><Text style={styles.slotEmoji}>{lang === 'lt' ? '🇱🇹' : '🇬🇧'}</Text></View>
-          </AnimatedButton>
-
-          {/* LEAVE A REVIEW — star left, star right */}
-          <AnimatedButton style={styles.secondaryButton} onPress={handleReview} colors={colors} isDarkMode={isDarkMode} secondary>
+          <AnimatedButton style={styles.secondaryButton} onPress={handleRateAndShare} colors={colors} isDarkMode={isDarkMode} secondary>
             <View style={styles.btnSlot}><Text style={styles.slotEmoji}>⭐</Text></View>
-            <Text style={styles.secondaryButtonText}>{t.leaveReview}</Text>
-            <View style={styles.btnSlot}><Text style={styles.slotEmoji}>⭐</Text></View>
-          </AnimatedButton>
-
-          {/* SUPPORT & SHARE — icon left, empty right slot */}
-          <AnimatedButton style={styles.secondaryButton} onPress={handleSupportShare} colors={colors} isDarkMode={isDarkMode} secondary>
+            <Text style={styles.secondaryButtonText}>{t.rateAndShare}</Text>
             <View style={styles.btnSlot}><Ionicons name="share-social-outline" size={20} color={isDarkMode ? '#fff' : '#000'} /></View>
-            <Text style={styles.secondaryButtonText}>{t.supportShare}</Text>
-            <View style={styles.btnSlot} />
           </AnimatedButton>
+
+
+
         </View>
 
         <Text style={styles.version}>v1.0</Text>
@@ -277,17 +264,15 @@ const getStyles = (colors, isDarkMode, glowOpacity, lang) => StyleSheet.create({
   },
   flagText: { fontSize: 24 },
   logoContainer: { alignItems: 'center', marginBottom: 20, marginTop: 40 },
-  logo: { width: 80, height: 80, marginBottom: 15 },
+  logo: { width: 170, height: 170, marginBottom: 15, backgroundColor: 'transparent' },
 
   titleWrapper: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    // Match the button row width so red pill lines up with buttons
     width: 320,
     paddingVertical: 14,
   },
-  // Red bg — wider than text, contained by pulseScale so never touches edges
   titleGlowBg: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
@@ -297,18 +282,16 @@ const getStyles = (colors, isDarkMode, glowOpacity, lang) => StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: '900',
-    color: isDarkMode ? '#fff' : '#fff',   // white on top of red glow in both modes
+    color: isDarkMode ? '#fff' : '#fff',
     letterSpacing: 6,
     textShadowColor: isDarkMode ? colors.primary : 'transparent',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: isDarkMode ? 20 : 0,
     zIndex: 1,
   },
-
-  // Light mode: deep visible colour; dark mode: neon cyan
   tagline: {
     fontSize: lang === 'lt' ? 14 : 18,
-    color: isDarkMode ? '#00ffff' : '#5b21b6',   // deep purple/indigo in light
+    color: isDarkMode ? '#00ffff' : '#5b21b6',
     marginTop: 15,
     marginBottom: 50,
     fontWeight: '700',
@@ -318,7 +301,6 @@ const getStyles = (colors, isDarkMode, glowOpacity, lang) => StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: isDarkMode ? 10 : 0,
   },
-
   buttonContainer: { width: '100%', maxWidth: 320, gap: 12 },
   mainButton: {
     backgroundColor: colors.primary,
@@ -345,7 +327,6 @@ const getStyles = (colors, isDarkMode, glowOpacity, lang) => StyleSheet.create({
     textAlign: 'center',
     flex: 1,
   },
-  // Fixed-width slots keep text perfectly centered on every button
   btnSlot: { width: 32, alignItems: 'center', justifyContent: 'center' },
   slotEmoji: { fontSize: 18 },
   version: {

@@ -1,4 +1,4 @@
-// CreateRoomScreen.js - Updated: no default players, min-3 gating, better UX
+// CreateRoomScreen.js
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -14,11 +14,29 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { lightHaptic, mediumHaptic, heavyHaptic, errorHaptic } from "../utils/HapticsManager";
+
 import AppButton from "../components/AppButton";
 
-/* -------------------- DATA (unchanged) -------------------- */
+/* -------------------- DATA -------------------- */
 const freeCategoriesEN = {
-  'Random': ['random1', 'random2', 'random3', 'random4', 'random5', 'random6'],
+  'Random': [
+    { word: 'Toothbrush', hint: 'bathroom' }, { word: 'Lion', hint: 'predator' },
+    { word: 'Elon Musk', hint: 'tech' }, { word: 'Grand', hint: 'fine' },
+    { word: 'Chair', hint: 'seating' }, { word: 'Taylor Swift', hint: 'pop' },
+    { word: 'Dolphin', hint: 'smart' }, { word: 'Craic', hint: 'fun' },
+    { word: 'Mirror', hint: 'reflection' }, { word: 'Cristiano Ronaldo', hint: 'football' },
+    { word: 'Eagle', hint: 'wings' }, { word: 'Deadly', hint: 'great' },
+    { word: 'Laptop', hint: 'computer' }, { word: 'Beyoncé', hint: 'singer' },
+    { word: 'Shark', hint: 'ocean' }, { word: 'Gobshite', hint: 'idiot' },
+    { word: 'Umbrella', hint: 'rain' }, { word: 'LeBron James', hint: 'basketball' },
+    { word: 'Penguin', hint: 'cold' }, { word: 'Knackered', hint: 'tired' },
+    { word: 'Fridge', hint: 'cold' }, { word: 'Leonardo DiCaprio', hint: 'Oscar' },
+    { word: 'Wolf', hint: 'pack' }, { word: 'Scarlet', hint: 'embarrassed' },
+    { word: 'Microwave', hint: 'heating' }, { word: 'Gordon Ramsay', hint: 'cooking' },
+    { word: 'Octopus', hint: 'tentacles' }, { word: 'Gaff', hint: 'home' },
+    { word: 'Headphones', hint: 'audio' }, { word: 'MrBeast', hint: 'YouTube' },
+  ],
   'Everyday Objects': [
     { word: 'Toothbrush', hint: 'bathroom' }, { word: 'Chair', hint: 'seating' },
     { word: 'Table', hint: 'surface' }, { word: 'Couch', hint: 'livingroom' },
@@ -139,7 +157,20 @@ const premiumCategoriesEN = {
 };
 
 const freeCategoriesLT = {
-  'Atsitiktinė': ['random1', 'random2', 'random3', 'random4', 'random5', 'random6'],
+  'Atsitiktinė': [
+    { word: 'Dantų šepetėlis', hint: 'vonios kambarys' }, { word: 'Liūtas', hint: 'plėšrūnas' },
+    { word: 'Elon Musk', hint: 'technologijos' }, { word: 'Grand', hint: 'gerai' },
+    { word: 'Kėdė', hint: 'sėdėjimas' }, { word: 'Taylor Swift', hint: 'pop' },
+    { word: 'Delfinas', hint: 'protingas' }, { word: 'Craic', hint: 'linksmybės' },
+    { word: 'Veidrodis', hint: 'atspindys' }, { word: 'Cristiano Ronaldo', hint: 'futbolas' },
+    { word: 'Erelis', hint: 'sparnai' }, { word: 'Deadly', hint: 'puiku' },
+    { word: 'Nešiojamas', hint: 'kompiuteris' }, { word: 'Beyoncé', hint: 'dainininkė' },
+    { word: 'Ryklys', hint: 'vandenynas' }, { word: 'Gobshite', hint: 'idiotas' },
+    { word: 'Skėtis', hint: 'lietus' }, { word: 'LeBron James', hint: 'krepšinis' },
+    { word: 'Pingvinas', hint: 'šaltis' }, { word: 'Knackered', hint: 'pavargęs' },
+    { word: 'Šaldytuvas', hint: 'šaltis' }, { word: 'Gordon Ramsay', hint: 'virimas' },
+    { word: 'Vilkas', hint: 'gauja' }, { word: 'Scarlet', hint: 'gėda' },
+  ],
   'Kasdieniai Daiktai': [
     { word: 'Dantų šepetėlis', hint: 'vonios kambarys' }, { word: 'Kėdė', hint: 'sėdėjimas' },
     { word: 'Stalas', hint: 'paviršius' }, { word: 'Sofa', hint: 'svetainė' },
@@ -178,21 +209,8 @@ const freeCategoriesLT = {
     { word: 'Tom Cruise', hint: 'veiksmas' }, { word: 'Adele', hint: 'vokalas' },
     { word: 'Ed Sheeran', hint: 'gitara' }, { word: 'Drake', hint: 'repas' },
     { word: 'Rihanna', hint: 'mada' }, { word: 'Billie Eilish', hint: 'alternatyva' },
-    { word: 'LeBron James', hint: 'krepšinis' }, { word: 'Stephen Curry', hint: 'metimas' },
-    { word: 'Serena Williams', hint: 'tenisas' }, { word: 'Usain Bolt', hint: 'sprintas' },
-    { word: 'Conor McGregor', hint: 'MMA' }, { word: 'Tiger Woods', hint: 'golfas' },
-    { word: 'David Beckham', hint: 'futbolas' }, { word: 'Kylian Mbappé', hint: 'greitis' },
-    { word: 'Novak Djokovic', hint: 'tenisas' }, { word: 'Lewis Hamilton', hint: 'lenktynės' },
-    { word: 'Brad Pitt', hint: 'Holivudas' }, { word: 'Angelina Jolie', hint: 'aktoriaus' },
-    { word: 'Leonardo DiCaprio', hint: 'Oskaras' }, { word: 'Jennifer Aniston', hint: 'sitcom' },
-    { word: 'Will Smith', hint: 'filmai' }, { word: 'Morgan Freeman', hint: 'balsas' },
-    { word: 'Robert Downey Jr.', hint: 'Marvel' }, { word: 'Scarlett Johansson', hint: 'Marvel' },
-    { word: 'Chris Hemsworth', hint: 'Thor' }, { word: 'Margot Robbie', hint: 'Barbie' },
-    { word: 'Mark Zuckerberg', hint: 'Facebook' }, { word: 'Jeff Bezos', hint: 'Amazon' },
-    { word: 'Bill Gates', hint: 'Microsoft' }, { word: 'Steve Jobs', hint: 'Apple' },
-    { word: 'Greta Thunberg', hint: 'klimatas' }, { word: 'Donald Trump', hint: 'politika' },
-    { word: 'Joe Biden', hint: 'prezidentas' }, { word: 'Prince William', hint: 'karališkasis' },
-    { word: 'King Charles', hint: 'monarchas' }, { word: 'Pope Francis', hint: 'Vatikanas' },
+    { word: 'LeBron James', hint: 'krepšinis' }, { word: 'Chris Hemsworth', hint: 'Thor' },
+    { word: 'Margot Robbie', hint: 'Barbie' }, { word: 'Pope Francis', hint: 'Vatikanas' },
   ],
   'Gyvūnai': [
     { word: 'Šuo', hint: 'augintinis' }, { word: 'Katė', hint: 'augintinis' },
@@ -203,50 +221,12 @@ const freeCategoriesLT = {
     { word: 'Delfinas', hint: 'protingas' }, { word: 'Banginis', hint: 'milžinas' },
     { word: 'Ryklys', hint: 'vandenynas' }, { word: 'Aštuonkojis', hint: 'čiulptuvai' },
     { word: 'Pingvinas', hint: 'šaltis' }, { word: 'Erelis', hint: 'sparnai' },
-    { word: 'Pelėda', hint: 'naktis' }, { word: 'Papūga', hint: 'kalbėjimas' },
-    { word: 'Flamingas', hint: 'rožinis' }, { word: 'Gulbė', hint: 'grakštus' },
-    { word: 'Arklys', hint: 'jodinėjimas' }, { word: 'Karvė', hint: 'pienas' },
-    { word: 'Kiaulė', hint: 'purvas' }, { word: 'Avis', hint: 'vilna' },
-    { word: 'Ožka', hint: 'ragai' }, { word: 'Elnias', hint: 'miškas' },
-    { word: 'Lapė', hint: 'gudrus' }, { word: 'Vilkas', hint: 'būrys' },
-    { word: 'Lokys', hint: 'žiemos miegas' }, { word: 'Triušis', hint: 'šokinėjimas' },
-    { word: 'Voverė', hint: 'riešutai' }, { word: 'Meškėnas', hint: 'kaukė' },
-    { word: 'Tinginys', hint: 'lėtas' }, { word: 'Beždžionė', hint: 'lipimas' },
-    { word: 'Gorila', hint: 'stiprus' }, { word: 'Kupranugaris', hint: 'dykuma' },
-    { word: 'Lama', hint: 'vilna' }, { word: 'Bizonas', hint: 'bandos' },
-    { word: 'Briedis', hint: 'ragai' }, { word: 'Ruonis', hint: 'pelekai' },
-    { word: 'Morsas', hint: 'iltis' }, { word: 'Krokodilas', hint: 'žandikauliai' },
-    { word: 'Aligatorius', hint: 'pelkė' }, { word: 'Varlė', hint: 'šokinėjimas' },
-    { word: 'Gyvatė', hint: 'šliaužimas' }, { word: 'Vėžlys', hint: 'šarvas' },
-    { word: 'Driežas', hint: 'žvynai' }, { word: 'Povas', hint: 'plunksnos' },
-    { word: 'Šikšnosparnis', hint: 'naktis' }, { word: 'Ežys', hint: 'spygliai' },
   ],
   'Airių Slangas': [
     { word: 'Grand', hint: 'gerai' }, { word: 'Craic', hint: 'linksmybės' },
     { word: 'Gas', hint: 'juokinga' }, { word: 'Deadly', hint: 'puiku' },
     { word: 'Savage', hint: 'nuostabu' }, { word: 'Sound', hint: 'malonus' },
-    { word: 'Fair play', hint: 'pagarbą' }, { word: "What's the story", hint: 'sveikinimas' },
     { word: 'Yoke', hint: 'daiktas' }, { word: 'Eejit', hint: 'kvailys' },
-    { word: 'Gobshite', hint: 'idiotas' }, { word: 'Gowl', hint: 'įžeidimas' },
-    { word: 'Dose', hint: 'erzinantis' }, { word: 'Feck', hint: 'keiksmažodis' },
-    { word: 'Jaysus', hint: 'nuostaba' }, { word: 'Shift', hint: 'bučinys' },
-    { word: 'Mot', hint: 'mergina' }, { word: 'Lad', hint: 'vaikinas' },
-    { word: 'Yer man', hint: 'žmogus' }, { word: 'Yer wan', hint: 'žmogus' },
-    { word: 'Banjaxed', hint: 'sugedęs' }, { word: 'Knackered', hint: 'pavargęs' },
-    { word: 'Scuttered', hint: 'girtas' }, { word: 'Plastered', hint: 'girtas' },
-    { word: 'Locked', hint: 'girtas' }, { word: 'Hammered', hint: 'girtas' },
-    { word: 'Pissed', hint: 'girtas' }, { word: 'Buzzin', hint: 'susijaudinęs' },
-    { word: 'Giving out', hint: 'skundimas' }, { word: 'On the lash', hint: 'gėrimas' },
-    { word: 'Up to 90', hint: 'užimtas' }, { word: 'Taking the piss', hint: 'pašaipymas' },
-    { word: 'Acting the maggot', hint: 'kvailas' }, { word: 'Head melted', hint: 'priblokštas' },
-    { word: 'Notions', hint: 'išpuikęs' }, { word: 'Bogger', hint: 'kaimietis' },
-    { word: 'Cute hoor', hint: 'gudrus' }, { word: 'Scarlet', hint: 'sugėdęs' },
-    { word: 'Away with the fairies', hint: 'atitrūkęs' }, { word: 'Story horse', hint: 'sveikinimas' },
-    { word: 'Cop on', hint: 'protas' }, { word: 'Dry shite', hint: 'nuobodus' },
-    { word: 'Chancer', hint: 'galimybių ieškotojas' }, { word: 'Manky', hint: 'nešvarus' },
-    { word: 'Skint', hint: 'be pinigų' }, { word: 'Gaff', hint: 'namai' },
-    { word: 'Messages', hint: 'pirkiniai' }, { word: 'Shifted', hint: 'pabučiuotas' },
-    { word: 'Leg it', hint: 'bėgti' }, { word: 'Sound out', hint: 'patvirtinti' },
   ],
 };
 
@@ -268,11 +248,14 @@ const translations = {
     category: 'CATEGORY',
     random: 'Random',
     hiddenRoles: 'HIDDEN ROLES',
+    // Game mode labels & subtitles
     clueAssist: 'CLUE ASSIST',
+    clueAssistSub: 'Spy gets category hint',
     assistOn: 'On',
     assistOff: 'Off',
     chaosRound: 'CHAOS ROUND',
-    allSpies: 'All Players Spies',
+    // ← Updated description
+    chaosRoundSub: 'A chance all players become spies',
     chaosOn: 'On',
     chaosOff: 'Off',
     timeLimit: 'TIME LIMIT',
@@ -289,12 +272,12 @@ const translations = {
     unlockPremium: 'Unlock Premium',
     premiumTitle: 'Unlock Premium Categories',
     premiumDesc: 'Get access to 300+ words across 6 exclusive categories!',
-    premiumFeatures:
-      '• Professions\n• Gen Z Mode\n• Adult Party Mode\n• Movie & TV Characters\n• Fantasy & Mythology\n• Famous Songs',
+    premiumFeatures: '• Professions\n• Gen Z Mode\n• Adult Party Mode\n• Movie & TV Characters\n• Fantasy & Mythology\n• Famous Songs',
     unlockPrice: 'Unlock for $4.99',
     maybeLater: 'Maybe Later',
     needMorePlayers: (n) => `Add ${n} more player${n === 1 ? '' : 's'} to start.`,
     maxPlayers: 'Max 12 players',
+    gameModes: 'GAME MODES',
   },
   lt: {
     title: 'SUKURTI KAMBARĮ',
@@ -305,10 +288,11 @@ const translations = {
     random: 'Atsitiktinė',
     hiddenRoles: 'PASLĖPTOS ROLES',
     clueAssist: 'UŽUOMINŲ PAGALBA',
+    clueAssistSub: 'Šnipas gauna kategorijos užuominą',
     assistOn: 'Įjungta',
     assistOff: 'Išjungta',
     chaosRound: 'CHAOS RATAS',
-    allSpies: 'Visi žaidėjai šnipai',
+    chaosRoundSub: 'Galimybė visiems tapti šnipais',
     chaosOn: 'Įjungta',
     chaosOff: 'Išjungta',
     timeLimit: 'LAIKO RIBA',
@@ -325,12 +309,12 @@ const translations = {
     unlockPremium: 'Atrakinti Premium',
     premiumTitle: 'Atrakinti Premium Kategorijas',
     premiumDesc: 'Gaukite prieigą prie 300+ žodžių iš 6 išskirtinių kategorijų!',
-    premiumFeatures:
-      '• Profesijos\n• Gen Z Režimas\n• Suaugusiųjų Vakarėlis\n• Filmų ir TV Personažai\n• Fantazija ir Mitologija\n• Garsios Dainos',
+    premiumFeatures: '• Profesijos\n• Gen Z Režimas\n• Suaugusiųjų Vakarėlis\n• Filmų ir TV Personažai\n• Fantazija ir Mitologija\n• Garsios Dainos',
     unlockPrice: 'Atrakinti už $4.99',
     maybeLater: 'Galbūt Vėliau',
     needMorePlayers: (n) => `Pridėkite dar ${n} žaidėją${n === 1 ? '' : 'ų'} pradžiai.`,
     maxPlayers: 'Maks. 12 žaidėjų',
+    gameModes: 'ŽAIDIMO REŽIMAI',
   },
 };
 
@@ -346,13 +330,12 @@ export default function CreateRoomScreen({ navigation, route }) {
   const MIN_PLAYERS = 3;
   const MAX_PLAYERS = 12;
 
-  // ✅ CHANGE #1: start with ZERO players
   const [players, setPlayers] = useState([]);
-
   const [newPlayerName, setNewPlayerName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(Object.keys(freeCategories)[0]);
   const [numImposters, setNumImposters] = useState(1);
-  const [clueAssist, setClueAssist] = useState(true);
+  // ← All game modes default OFF
+  const [clueAssist, setClueAssist] = useState(false); // OFF by default
   const [chaosRound, setChaosRound] = useState(false);
   const [timeLimit, setTimeLimit] = useState(false);
   const [pressedButton, setPressedButton] = useState(null);
@@ -371,57 +354,39 @@ export default function CreateRoomScreen({ navigation, route }) {
 
   const addPlayer = () => {
     const name = newPlayerName.trim();
-    if (!name) {
-      Alert.alert('Error', t.noName);
-      return;
-    }
-    if (players.length >= MAX_PLAYERS) {
-      Alert.alert('Error', t.maxPlayers);
-      return;
-    }
-    if (normalizedPlayers.includes(name.toLowerCase())) {
-      Alert.alert('Error', t.duplicateName);
-      return;
-    }
-
+    if (!name) { Alert.alert('Error', t.noName); return; }
+    lightHaptic();
+    if (players.length >= MAX_PLAYERS) { Alert.alert('Error', t.maxPlayers); return; }
+    if (normalizedPlayers.includes(name.toLowerCase())) { Alert.alert('Error', t.duplicateName); return; }
     setPlayers((prev) => [...prev, name]);
     setNewPlayerName('');
   };
 
-  // ✅ CHANGE #2: allow removing down to ZERO (no "min 3" block here)
-  const removePlayer = (index) => {
-    setPlayers((prev) => prev.filter((_, i) => i !== index));
-  };
+  const removePlayer = (index) => setPlayers((prev) => prev.filter((_, i) => i !== index));
 
   const selectCategory = (cat, isPremiumCat = false) => {
-    if (isPremiumCat && !isPremium) {
-      setShowPremiumModal(true);
-      return;
-    }
+    if (isPremiumCat && !isPremium) { setShowPremiumModal(true); return; }
+    lightHaptic();
     setSelectedCategory(cat);
   };
 
-  const unlockPremium = () => {
-    setIsPremium(true);
-    setShowPremiumModal(false);
-  };
+  const unlockPremium = () => { setIsPremium(true); setShowPremiumModal(false); };
 
   const startGame = () => {
-    // ✅ CHANGE #3: gate on start, not on remove
-    if (!canStart) {
-      Alert.alert('Error', t.needMorePlayers(remainingPlayers));
-      return;
-    }
+    if (!canStart) { Alert.alert('Error', t.needMorePlayers(remainingPlayers)); return; }
+    mediumHaptic();
 
     const categoryData = freeCategories[selectedCategory] || premiumCategories[selectedCategory];
     const randomItem = categoryData[Math.floor(Math.random() * categoryData.length)];
     const secretWord = typeof randomItem === 'object' ? randomItem.word : randomItem;
     const hintWord = typeof randomItem === 'object' ? randomItem.hint : '';
 
-    let imposterIndices = [];
-    const actualNumImposters = chaosRound && Math.random() < 0.3 ? players.length : numImposters;
+    // ← Chaos Round: 30% chance all players become spies
+    const triggerChaos = chaosRound && Math.random() < 0.30;
+    const actualNumImposters = triggerChaos ? players.length : numImposters;
 
-    while (imposterIndices.length < actualNumImposters) {
+    let imposterIndices = [];
+    while (imposterIndices.length < Math.min(actualNumImposters, players.length)) {
       const idx = Math.floor(Math.random() * players.length);
       if (!imposterIndices.includes(idx)) imposterIndices.push(idx);
     }
@@ -433,40 +398,32 @@ export default function CreateRoomScreen({ navigation, route }) {
       imposterIndices,
       clueAssist,
       category: selectedCategory,
+      categoryId: selectedCategory,
+      categoryName: selectedCategory,
       language: lang,
       timeLimit,
       timePerPerson: 15,
+      numImposters: actualNumImposters,
     });
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
-      />
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={24} color={isDarkMode ? '#fff' : '#000'} />
           </TouchableOpacity>
-
           <Text style={styles.title}>{t.title}</Text>
           <View style={styles.placeholder} />
         </View>
 
         {/* Players */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t.players} ({players.length}/{MAX_PLAYERS})
-          </Text>
-
+          <Text style={styles.sectionTitle}>{t.players} ({players.length}/{MAX_PLAYERS})</Text>
           <View style={styles.inputRow}>
             <View style={styles.inputContainer}>
               <TextInput
@@ -480,17 +437,11 @@ export default function CreateRoomScreen({ navigation, route }) {
                 returnKeyType="done"
               />
             </View>
-
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={addPlayer}
-              activeOpacity={0.9}
-            >
+            <TouchableOpacity style={styles.addButton} onPress={addPlayer} activeOpacity={0.9}>
               <Ionicons name="add" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          {/* Empty state + helper */}
           {players.length === 0 ? (
             <Text style={styles.helperText}>{t.needMorePlayers(MIN_PLAYERS)}</Text>
           ) : !canStart ? (
@@ -514,21 +465,18 @@ export default function CreateRoomScreen({ navigation, route }) {
         {/* Free Categories */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.freeCategories}</Text>
-
           <View style={styles.categoryList}>
             {Object.keys(freeCategories).map((cat) => (
               <View key={cat} style={{ width: "100%" }}>
                 <AppButton
-                  title={cat === "Random" || cat === "Atsitiktine" ? `🎲 ${t.random}` : cat}
+                  title={cat === "Random" || cat === "Atsitiktinė" ? `🎲 ${t.random}` : cat}
                   onPress={() => selectCategory(cat)}
                   activeOpacity={0.8}
                   style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]}
                   textStyle={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}
                 />
-                {selectedCategory === cat && <View style={styles.activeGlow} />}
               </View>
             ))}
-
           </View>
         </View>
 
@@ -537,35 +485,24 @@ export default function CreateRoomScreen({ navigation, route }) {
           <View style={styles.premiumHeader}>
             <Text style={styles.sectionTitle}>{t.premiumCategories}</Text>
             {!isPremium && (
-              <TouchableOpacity
-                style={styles.unlockButton}
-                onPress={() => setShowPremiumModal(true)}
-              >
+              <TouchableOpacity style={styles.unlockButton} onPress={() => setShowPremiumModal(true)}>
                 <Text style={styles.unlockButtonText}>{t.unlockPremium}</Text>
               </TouchableOpacity>
             )}
           </View>
-
           <View style={styles.categoryList}>
             {Object.keys(premiumCategories).map((cat) => (
               <TouchableOpacity
                 key={cat}
                 style={[
-                  styles.categoryChip,
-                  styles.premiumChip,
+                  styles.categoryChip, styles.premiumChip,
                   selectedCategory === cat && isPremium && styles.categoryChipActive,
                   !isPremium && styles.lockedChip,
                 ]}
                 onPress={() => selectCategory(cat, true)}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    !isPremium && styles.lockedText,
-                    selectedCategory === cat && isPremium && styles.categoryTextActive,
-                  ]}
-                >
+                <Text style={[styles.categoryText, !isPremium && styles.lockedText, selectedCategory === cat && isPremium && styles.categoryTextActive]}>
                   {cat}
                 </Text>
                 {!isPremium && <Text style={styles.lockIcon}>🔒</Text>}
@@ -581,16 +518,11 @@ export default function CreateRoomScreen({ navigation, route }) {
             {[1, 2, 3].map((num) => (
               <TouchableOpacity
                 key={num}
-                style={[
-                  styles.counterButton,
-                  numImposters === num ? styles.counterButtonActive : styles.strongOutline,
-                ]}
+                style={[styles.counterButton, numImposters === num ? styles.counterButtonActive : styles.strongOutline]}
                 onPress={() => setNumImposters(num)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.counterText, numImposters === num && styles.counterTextActive]}>
-                  {num}
-                </Text>
+                <Text style={[styles.counterText, numImposters === num && styles.counterTextActive]}>{num}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -598,20 +530,17 @@ export default function CreateRoomScreen({ navigation, route }) {
 
         {/* Game Modes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>GAME MODES</Text>
-
+          <Text style={styles.sectionTitle}>{t.gameModes}</Text>
           <View style={styles.toggleRow}>
+
+            {/* Clue Assist — now has subtitle describing what it does */}
             <TouchableOpacity
-              style={[
-                styles.toggleSquare,
-                clueAssist ? styles.toggleSquareActive : styles.strongOutline,
-              ]}
+              style={[styles.toggleSquare, clueAssist ? styles.toggleSquareActive : styles.strongOutline]}
               onPress={() => setClueAssist(!clueAssist)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleSquareTitle, clueAssist && styles.toggleSquareTitleActive]}>
-                {t.clueAssist}
-              </Text>
+              <Text style={[styles.toggleSquareTitle, clueAssist && styles.toggleSquareTitleActive]}>{t.clueAssist}</Text>
+              <Text style={[styles.toggleSquareSubtitle, clueAssist && styles.toggleSquareSubtitleActive]}>{t.clueAssistSub}</Text>
               <View style={[styles.toggleIndicator, clueAssist && styles.toggleIndicatorActive]}>
                 <Text style={[styles.toggleIndicatorText, clueAssist && styles.toggleIndicatorTextActive]}>
                   {clueAssist ? t.assistOn : t.assistOff}
@@ -619,20 +548,14 @@ export default function CreateRoomScreen({ navigation, route }) {
               </View>
             </TouchableOpacity>
 
+            {/* Chaos Round — renamed + new subtitle */}
             <TouchableOpacity
-              style={[
-                styles.toggleSquare,
-                chaosRound ? styles.toggleSquareActive : styles.strongOutline,
-              ]}
+              style={[styles.toggleSquare, chaosRound ? styles.toggleSquareActive : styles.strongOutline]}
               onPress={() => setChaosRound(!chaosRound)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleSquareTitle, chaosRound && styles.toggleSquareTitleActive]}>
-                {t.chaosRound}
-              </Text>
-              <Text style={[styles.toggleSquareSubtitle, chaosRound && styles.toggleSquareSubtitleActive]}>
-                {t.allSpies}
-              </Text>
+              <Text style={[styles.toggleSquareTitle, chaosRound && styles.toggleSquareTitleActive]}>{t.chaosRound}</Text>
+              <Text style={[styles.toggleSquareSubtitle, chaosRound && styles.toggleSquareSubtitleActive]}>{t.chaosRoundSub}</Text>
               <View style={[styles.toggleIndicator, chaosRound && styles.toggleIndicatorActive]}>
                 <Text style={[styles.toggleIndicatorText, chaosRound && styles.toggleIndicatorTextActive]}>
                   {chaosRound ? t.chaosOn : t.chaosOff}
@@ -640,41 +563,31 @@ export default function CreateRoomScreen({ navigation, route }) {
               </View>
             </TouchableOpacity>
 
+            {/* Time Limit */}
             <TouchableOpacity
-              style={[
-                styles.toggleSquare,
-                timeLimit ? styles.toggleSquareActive : styles.strongOutline,
-              ]}
+              style={[styles.toggleSquare, timeLimit ? styles.toggleSquareActive : styles.strongOutline]}
               onPress={() => setTimeLimit(!timeLimit)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleSquareTitle, timeLimit && styles.toggleSquareTitleActive]}>
-                {t.timeLimit}
-              </Text>
-              <Text style={[styles.toggleSquareSubtitle, timeLimit && styles.toggleSquareSubtitleActive]}>
-                {t.timeLimitSub}
-              </Text>
+              <Text style={[styles.toggleSquareTitle, timeLimit && styles.toggleSquareTitleActive]}>{t.timeLimit}</Text>
+              <Text style={[styles.toggleSquareSubtitle, timeLimit && styles.toggleSquareSubtitleActive]}>{t.timeLimitSub}</Text>
               <View style={[styles.toggleIndicator, timeLimit && styles.toggleIndicatorActive]}>
                 <Text style={[styles.toggleIndicatorText, timeLimit && styles.toggleIndicatorTextActive]}>
                   {timeLimit ? t.timeOn : t.timeOff}
                 </Text>
               </View>
             </TouchableOpacity>
+
           </View>
         </View>
 
-        {/* ✅ CHANGE #4: disable start button until MIN_PLAYERS */}
         <AppButton
           title={!canStart ? t.needMorePlayers(remainingPlayers) : t.startGame}
           onPress={startGame}
           disabled={!canStart}
           onPressIn={() => setPressedButton("start")}
           onPressOut={() => setPressedButton(null)}
-          style={[
-            styles.startButton,
-            pressedButton === "start" && styles.startButtonPressed,
-            !canStart && styles.startButtonDisabled,
-          ]}
+          style={[styles.startButton, pressedButton === "start" && styles.startButtonPressed, !canStart && styles.startButtonDisabled]}
           textStyle={styles.startButtonText}
           rightIcon={<Ionicons name="play" size={20} color="#fff" />}
         />
@@ -687,15 +600,10 @@ export default function CreateRoomScreen({ navigation, route }) {
             <Text style={styles.modalTitle}>{t.premiumTitle}</Text>
             <Text style={styles.modalDesc}>{t.premiumDesc}</Text>
             <Text style={styles.modalFeatures}>{t.premiumFeatures}</Text>
-
             <TouchableOpacity style={styles.unlockPriceButton} onPress={unlockPremium}>
               <Text style={styles.unlockPriceText}>{t.unlockPrice}</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.maybeLaterButton}
-              onPress={() => setShowPremiumModal(false)}
-            >
+            <TouchableOpacity style={styles.maybeLaterButton} onPress={() => setShowPremiumModal(false)}>
               <Text style={styles.maybeLaterText}>{t.maybeLater}</Text>
             </TouchableOpacity>
           </View>
@@ -706,357 +614,99 @@ export default function CreateRoomScreen({ navigation, route }) {
 }
 
 /* -------------------- STYLES -------------------- */
-const getStyles = (colors, isDarkMode) =>
-  StyleSheet.create({
+const getStyles = (colors, isDarkMode) => {
+  const border = isDarkMode ? '#ffffff' : '#000000';
+  return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    scrollContent: { padding: 20, paddingTop: 20 },
-
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 30,
-    },
-
+    scrollContent: { padding: 20, paddingTop: 36 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30 },
     backButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      backgroundColor: colors.surface,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: '#000',
+      width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface,
+      justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: border,
     },
-
-    strongOutline: {
-      borderWidth: 2,
-      borderColor: isDarkMode ? '#ffffff' : '#000000',
-      backgroundColor: colors.surface,
-    },
-
-    title: {
-      fontSize: 22,
-      fontWeight: '900',
-      color: isDarkMode ? '#fff' : '#000',
-      letterSpacing: 3,
-    },
-
+    strongOutline: { borderWidth: 2, borderColor: border, backgroundColor: colors.surface },
+    title: { fontSize: 26, fontWeight: '900', color: isDarkMode ? '#fff' : '#000', letterSpacing: 3 },
     placeholder: { width: 44 },
-
     section: { marginBottom: 28 },
-
-    sectionTitle: {
-      fontSize: 14,
-      fontWeight: '800',
-      color: isDarkMode ? '#ffffff' : '#000000',
-      marginBottom: 14,
-      letterSpacing: 3,
-    },
-
+    sectionTitle: { fontSize: 16, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#000000', marginBottom: 14, letterSpacing: 3 },
     inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-
     inputContainer: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: isDarkMode ? '#444444' : '#cccccc',
-      borderRadius: 14,
-      backgroundColor: colors.surface,
-      overflow: 'hidden',
+      flex: 1, borderWidth: 1, borderColor: isDarkMode ? '#444444' : '#cccccc',
+      borderRadius: 14, backgroundColor: colors.surface, overflow: 'hidden',
     },
-
-    input: {
-      flex: 1,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontSize: 16,
-      color: isDarkMode ? '#ffffff' : '#000000',
-    },
-
+    input: { flex: 1, paddingHorizontal: 14, paddingVertical: 13, fontSize: 18, color: isDarkMode ? '#ffffff' : '#000000' },
     addButton: {
-      width: 52,
-      backgroundColor: colors.primary,
-      borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: '#000',
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 4,
+      width: 52, height: 52, backgroundColor: colors.primary, borderRadius: 14,
+      justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: border,
     },
-
-    helperText: {
-      marginTop: 10,
-      color: isDarkMode ? '#aaaaaa' : '#666666',
-      fontWeight: '600',
-    },
-
-    helperTextOk: {
-      marginTop: 10,
-      color: isDarkMode ? '#9dffb3' : '#0a6b2d',
-      fontWeight: '700',
-    },
-
-    playersList: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 10,
-      marginTop: 16,
-    },
-
+    helperText: { marginTop: 10, color: isDarkMode ? '#aaaaaa' : '#666666', fontWeight: '600', fontSize: 15 },
+    helperTextOk: { marginTop: 10, color: isDarkMode ? '#9dffb3' : '#0a6b2d', fontWeight: '700', fontSize: 15 },
+    playersList: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
     playerChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.surface,
-      paddingVertical: 10,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: isDarkMode ? '#444444' : '#cccccc',
-      gap: 10,
+      flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+      paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20,
+      borderWidth: 1, borderColor: isDarkMode ? '#444444' : '#cccccc', gap: 10,
     },
-
-    playerName: {
-      color: isDarkMode ? '#ffffff' : '#000000',
-      fontWeight: '600',
-      fontSize: 14,
-    },
-
+    playerName: { color: isDarkMode ? '#ffffff' : '#000000', fontWeight: '600', fontSize: 16 },
     categoryList: { gap: 8 },
-
     categoryChip: {
-      backgroundColor: colors.surface,
-      paddingVertical: 14,
-      paddingHorizontal: 20,
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: isDarkMode ? '#ffffff' : '#000000',
-      position: 'relative',
-      overflow: 'hidden',
+      backgroundColor: colors.surface, paddingVertical: 14, paddingHorizontal: 20,
+      borderRadius: 14, borderWidth: 2, borderColor: border,
     },
-
-    categoryChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: isDarkMode ? '#ffffff' : '#000000',
-    },
-
-    categoryText: {
-      color: isDarkMode ? '#ffffff' : '#000000',
-      fontWeight: '600',
-      fontSize: 15,
-    },
-
+    categoryChipActive: { backgroundColor: colors.primary, borderColor: border },
+    categoryText: { color: isDarkMode ? '#ffffff' : '#000000', fontWeight: '600', fontSize: 17 },
     categoryTextActive: { color: '#fff', fontWeight: '700' },
-
-    activeGlow: {
-      position: 'absolute',
-      top: -20,
-      right: -20,
-      width: 60,
-      height: 60,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      borderRadius: 30,
-    },
-
-    premiumHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 14,
-    },
-
+    premiumHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
     unlockButton: {
-      backgroundColor: colors.accent,
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      borderWidth: 2,
-      borderColor: '#000',
+      backgroundColor: colors.accent, paddingVertical: 8, paddingHorizontal: 16,
+      borderRadius: 20, borderWidth: 2, borderColor: border,
     },
-
-    unlockButtonText: { color: '#000', fontWeight: '800', fontSize: 12 },
-
+    unlockButtonText: { color: isDarkMode ? '#000' : '#000', fontWeight: '800', fontSize: 14 },
     premiumChip: { position: 'relative' },
-
-    lockedChip: {
-      borderWidth: 1,
-      borderColor: colors.primary,
-      backgroundColor: 'transparent',
-    },
-
+    lockedChip: { borderWidth: 1, borderColor: colors.primary, backgroundColor: 'transparent' },
     lockedText: { color: isDarkMode ? '#888888' : '#999999' },
-
     lockIcon: { position: 'absolute', right: 20, fontSize: 20 },
-
     counterContainer: { flexDirection: 'row', gap: 12 },
-
-    counterButton: {
-      flex: 1,
-      backgroundColor: colors.surface,
-      paddingVertical: 16,
-      borderRadius: 14,
-      alignItems: 'center',
-    },
-
+    counterButton: { flex: 1, backgroundColor: colors.surface, paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
     counterButtonActive: {
-      backgroundColor: colors.primary,
-      borderWidth: 2,
-      borderColor: isDarkMode ? '#ffffff' : '#000000',
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 4,
+      backgroundColor: colors.primary, borderWidth: 2, borderColor: border,
+      shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
     },
-
-    counterText: {
-      color: isDarkMode ? '#ffffff' : '#000000',
-      fontSize: 20,
-      fontWeight: '700',
-    },
-
+    counterText: { color: isDarkMode ? '#ffffff' : '#000000', fontSize: 24, fontWeight: '700' },
     counterTextActive: { color: '#fff' },
-
     toggleRow: { flexDirection: 'row', gap: 10 },
-
-   toggleSquare: {
-  flex: 1,
-  backgroundColor: colors.surface,
-  padding: 12,
-  borderRadius: 14,
-  alignItems: 'center',
-  minHeight: 120,
-  justifyContent: 'space-between',
-},
-
-    toggleSquareActive: {
-      borderWidth: 2,
-      borderColor: isDarkMode ? '#ffffff' : '#000000',
-      backgroundColor: colors.primary + '15',
+    toggleSquare: {
+      flex: 1, backgroundColor: colors.surface, padding: 12, borderRadius: 14,
+      alignItems: 'center', minHeight: 120, justifyContent: 'space-between',
     },
-
-    toggleSquareTitle: {
-      color: isDarkMode ? '#ffffff' : '#000000',
-      fontWeight: '800',
-      fontSize: 11,
-      letterSpacing: 1,
-      marginBottom: 4,
-      textAlign: 'center',
-    },
-
+    toggleSquareActive: { borderWidth: 2, borderColor: border, backgroundColor: colors.primary + '15' },
+    toggleSquareTitle: { color: isDarkMode ? '#ffffff' : '#000000', fontWeight: '800', fontSize: 12, letterSpacing: 1, textAlign: 'center' },
     toggleSquareTitleActive: { color: isDarkMode ? '#fff' : '#000' },
-
-    toggleSquareSubtitle: {
-      color: isDarkMode ? '#aaaaaa' : '#666666',
-      fontSize: 9,
-      marginBottom: 8,
-      textAlign: 'center',
-    },
-
+    toggleSquareSubtitle: { color: isDarkMode ? '#aaaaaa' : '#666666', fontSize: 11, textAlign: 'center', marginTop: 4 },
     toggleSquareSubtitleActive: { color: isDarkMode ? '#fff' : '#000', opacity: 0.8 },
-
     toggleIndicator: {
-      backgroundColor: isDarkMode ? '#333333' : '#e0e0e0',
-      paddingVertical: 4,
-      paddingHorizontal: 10,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: isDarkMode ? '#555555' : '#999999',
+      backgroundColor: isDarkMode ? '#333333' : '#e0e0e0', paddingVertical: 4, paddingHorizontal: 10,
+      borderRadius: 12, borderWidth: 1, borderColor: isDarkMode ? '#555555' : '#999999',
     },
-
-    toggleIndicatorActive: { backgroundColor: colors.primary, borderColor: '#000' },
-
-    toggleIndicatorText: {
-      color: isDarkMode ? '#888888' : '#666666',
-      fontWeight: '700',
-      fontSize: 10,
-    },
-
+    toggleIndicatorActive: { backgroundColor: colors.primary, borderColor: border },
+    toggleIndicatorText: { color: isDarkMode ? '#888888' : '#666666', fontWeight: '700', fontSize: 12 },
     toggleIndicatorTextActive: { color: '#fff' },
-
     startButton: {
-      backgroundColor: colors.primary,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 20,
-      borderRadius: 16,
-      marginTop: 10,
-      gap: 12,
-      borderWidth: 2,
-      borderColor: '#000',
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.4,
-      shadowRadius: 12,
-      elevation: 8,
-      transform: [{ scale: 1 }],
+      backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      paddingVertical: 20, borderRadius: 16, marginTop: 10, gap: 12, borderWidth: 2, borderColor: border,
+      shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
     },
-
     startButtonDisabled: { opacity: 0.45 },
-
     startButtonPressed: { transform: [{ scale: 0.97 }], shadowOpacity: 0.2 },
-
-    startButtonText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 2 },
-
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.8)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
-    },
-
-    modalContent: {
-      backgroundColor: colors.surface,
-      padding: 30,
-      borderRadius: 20,
-      width: '100%',
-      maxWidth: 350,
-      borderWidth: 2,
-      borderColor: '#000',
-    },
-
-    modalTitle: {
-      fontSize: 20,
-      fontWeight: '900',
-      color: isDarkMode ? '#fff' : '#000',
-      marginBottom: 15,
-      textAlign: 'center',
-      letterSpacing: 2,
-    },
-
-    modalDesc: {
-      fontSize: 14,
-      color: isDarkMode ? '#ffffff' : '#000000',
-      marginBottom: 15,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-
-    modalFeatures: {
-      fontSize: 13,
-      color: isDarkMode ? '#aaaaaa' : '#666666',
-      marginBottom: 25,
-      lineHeight: 22,
-    },
-
-    unlockPriceButton: {
-      backgroundColor: colors.primary,
-      paddingVertical: 16,
-      borderRadius: 12,
-      alignItems: 'center',
-      marginBottom: 10,
-      borderWidth: 2,
-      borderColor: '#000',
-    },
-
-    unlockPriceText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
-
+    startButtonText: { color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: 2 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    modalContent: { backgroundColor: colors.surface, padding: 30, borderRadius: 20, width: '100%', maxWidth: 350, borderWidth: 2, borderColor: border },
+    modalTitle: { fontSize: 22, fontWeight: '900', color: isDarkMode ? '#fff' : '#000', marginBottom: 15, textAlign: 'center', letterSpacing: 2 },
+    modalDesc: { fontSize: 16, color: isDarkMode ? '#ffffff' : '#000000', marginBottom: 15, textAlign: 'center', lineHeight: 20 },
+    modalFeatures: { fontSize: 15, color: isDarkMode ? '#aaaaaa' : '#666666', marginBottom: 25, lineHeight: 22 },
+    unlockPriceButton: { backgroundColor: colors.primary, paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginBottom: 10, borderWidth: 2, borderColor: border },
+    unlockPriceText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 2 },
     maybeLaterButton: { paddingVertical: 12, alignItems: 'center' },
-
-    maybeLaterText: { color: isDarkMode ? '#888888' : '#666666', fontSize: 14, fontWeight: '600' },
+    maybeLaterText: { color: isDarkMode ? '#888888' : '#666666', fontSize: 16, fontWeight: '600' },
   });
+};
