@@ -1,4 +1,4 @@
-// HomeScreen.js - Buttons moved up by ~1 inch (roughly 100px)
+// HomeScreen.js
 import AppButton from "../components/AppButton";
 import React, { useEffect, useRef } from 'react';
 import {
@@ -13,6 +13,7 @@ import {
   Easing,
   Dimensions,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -21,25 +22,29 @@ const { width, height } = Dimensions.get('window');
 
 const translations = {
   en: {
-    title: 'IMPOSTER ROOM',
+    title: 'SPY ROOM',
     tagline: 'Lies. Clues. Chaos.',
     newGame: 'NEW GAME',
     howToPlay: 'HOW TO PLAY',
     language: 'LANGUAGE',
+    leaveReview: 'LEAVE A REVIEW',
+    supportShare: 'SUPPORT & SHARE',
   },
   lt: {
-    title: 'IMPOSTER ROOM',
+    title: 'SPY ROOM',
     tagline: 'Melas. Užuominos. Chaosas.',
     newGame: 'NAUJAS ŽAIDIMAS',
     howToPlay: 'KAIP ŽAISTI',
     language: 'KALBA',
+    leaveReview: 'PALIKTI ATSILIEPIMĄ',
+    supportShare: 'PALAIKYK IR DALINKIS',
   }
 };
 
 const Particle = ({ delay, colors, screenWidth, screenHeight }) => {
-  const position = useRef(new Animated.ValueXY({ 
-    x: Math.random() * screenWidth, 
-    y: screenHeight + 50 
+  const position = useRef(new Animated.ValueXY({
+    x: Math.random() * screenWidth,
+    y: screenHeight + 50
   })).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -66,7 +71,6 @@ const Particle = ({ delay, colors, screenWidth, screenHeight }) => {
   }, []);
 
   const particleColor = Math.random() > 0.5 ? colors.primary : colors.accent;
-
   return (
     <Animated.View
       style={[
@@ -89,7 +93,6 @@ const AnimatedButton = ({ children, style, onPress, colors, isDarkMode, secondar
     Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, friction: 5 }).start();
     if (!secondary) Animated.timing(glowAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
   };
-
   const onPressOut = () => {
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
     if (!secondary) Animated.timing(glowAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
@@ -98,17 +101,11 @@ const AnimatedButton = ({ children, style, onPress, colors, isDarkMode, secondar
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <TouchableOpacity
-  style={[
-    style,
-    {
-      borderWidth: 2,
-      borderColor: isDarkMode ? '#ffffff' : '#000000'
-    }
-  ]}
-  onPress={onPress}
-  onPressIn={onPressIn}
-  onPressOut={onPressOut}
->
+        style={[style, { borderWidth: 2, borderColor: isDarkMode ? '#ffffff' : '#000000' }]}
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+      >
         {!secondary && isDarkMode && (
           <Animated.View style={[buttonStyles.buttonGlow, { opacity: glowAnim, shadowColor: colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 20 }]} />
         )}
@@ -128,19 +125,24 @@ export default function HomeScreen({ navigation, route }) {
   const t = translations[lang];
 
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  // Pulse: smaller range so it doesn't reach screen edges
+  const pulseAnim = useRef(new Animated.Value(0)).current;
   const flickerAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // Same sine easing as pulse — red breathes in sync with the scale
     Animated.loop(Animated.sequence([
-      Animated.timing(glowAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(glowAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(glowAnim, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(glowAnim, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ])).start();
 
-    Animated.loop(Animated.sequence([
-      Animated.timing(pulseAnim, { toValue: 1.02, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(pulseAnim, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ])).start();
+    // Smooth sine-wave: 0->1->0 maps to scale 0.93->1.07, perfectly continuous
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
 
     const flicker = () => {
       Animated.sequence([
@@ -152,23 +154,35 @@ export default function HomeScreen({ navigation, route }) {
     flicker();
   }, []);
 
-  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] });
+  // Breathes between slightly dark and slightly lighter red — always visible, never transparent
+  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.85] });
+  // Maps 0->1->0 sine wave to scale 0.93->1.07->0.93 — perfectly smooth, no jump
+  const pulseScale = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1.07] });
   const styles = getStyles(colors, isDarkMode, glowOpacity, lang);
 
   const particles = Array.from({ length: 15 }, (_, i) => (
     <Particle key={i} delay={i * 500} colors={colors} screenWidth={width} screenHeight={height} />
   ));
 
+  const handleReview = () => {
+    // Replace with your actual App Store / Play Store URL
+    Linking.openURL('https://apps.apple.com/app/idYOUR_APP_ID');
+  };
+
+  const handleSupportShare = () => {
+    Linking.openURL('mailto:support@spyroom.app?subject=Support');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       <View style={styles.particlesContainer}>{particles}</View>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.themeToggle} onPress={toggleTheme} activeOpacity={0.7}>
             <Ionicons name={isDarkMode ? 'sunny' : 'moon'} size={22} color={isDarkMode ? '#fff' : '#000'} />
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.languageButton} onPress={() => navigation.navigate('SelectLanguage', { currentLang: lang })}>
             <Text style={styles.flagText}>{lang === 'lt' ? '🇱🇹' : '🇬🇧'}</Text>
           </TouchableOpacity>
@@ -176,10 +190,15 @@ export default function HomeScreen({ navigation, route }) {
 
         <View style={styles.logoContainer}>
           <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-          <Animated.View style={[styles.titleWrapper, { transform: [{ scale: pulseAnim }], opacity: flickerAnim }]}>
-            <Text style={styles.title}>{t.title}</Text>
-            {isDarkMode && <Animated.View style={[styles.glowOverlay, { opacity: glowOpacity }]} />}
+
+          <Animated.View style={[styles.titleWrapper, { transform: [{ scale: pulseScale }] }]}>
+            {/* Red bg pulses opacity smoothly — wider than text, no flicker */}
+            <Animated.View style={[styles.titleGlowBg, { opacity: glowOpacity }]} />
+            {/* Flicker only on the text, not the background */}
+            <Animated.Text style={[styles.title, { opacity: flickerAnim }]}>{t.title}</Animated.Text>
           </Animated.View>
+
+          {/* Tagline: cyan in dark, deep indigo in light so it's visible on white */}
           <Text style={styles.tagline}>{t.tagline}</Text>
         </View>
 
@@ -189,15 +208,32 @@ export default function HomeScreen({ navigation, route }) {
             <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />
           </AnimatedButton>
 
+          {/* HOW TO PLAY — icon left, empty right slot */}
           <AnimatedButton style={styles.secondaryButton} onPress={() => navigation.navigate('HowToPlay', { language: lang })} colors={colors} isDarkMode={isDarkMode} secondary>
-            <Ionicons name="help-circle-outline" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.buttonIconLeft} />
+            <View style={styles.btnSlot}><Ionicons name="help-circle-outline" size={20} color={isDarkMode ? '#fff' : '#000'} /></View>
             <Text style={styles.secondaryButtonText}>{t.howToPlay}</Text>
+            <View style={styles.btnSlot} />
           </AnimatedButton>
 
+          {/* LANGUAGE — icon left, flag right */}
           <AnimatedButton style={styles.secondaryButton} onPress={() => navigation.navigate('SelectLanguage', { currentLang: lang })} colors={colors} isDarkMode={isDarkMode} secondary>
-            <Ionicons name="globe-outline" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.buttonIconLeft} />
+            <View style={styles.btnSlot}><Ionicons name="globe-outline" size={20} color={isDarkMode ? '#fff' : '#000'} /></View>
             <Text style={styles.secondaryButtonText}>{t.language}</Text>
-            <Text style={styles.flagInButton}>{lang === 'lt' ? '🇱🇹' : '🇬🇧'}</Text>
+            <View style={styles.btnSlot}><Text style={styles.slotEmoji}>{lang === 'lt' ? '🇱🇹' : '🇬🇧'}</Text></View>
+          </AnimatedButton>
+
+          {/* LEAVE A REVIEW — star left, star right */}
+          <AnimatedButton style={styles.secondaryButton} onPress={handleReview} colors={colors} isDarkMode={isDarkMode} secondary>
+            <View style={styles.btnSlot}><Text style={styles.slotEmoji}>⭐</Text></View>
+            <Text style={styles.secondaryButtonText}>{t.leaveReview}</Text>
+            <View style={styles.btnSlot}><Text style={styles.slotEmoji}>⭐</Text></View>
+          </AnimatedButton>
+
+          {/* SUPPORT & SHARE — icon left, empty right slot */}
+          <AnimatedButton style={styles.secondaryButton} onPress={handleSupportShare} colors={colors} isDarkMode={isDarkMode} secondary>
+            <View style={styles.btnSlot}><Ionicons name="share-social-outline" size={20} color={isDarkMode ? '#fff' : '#000'} /></View>
+            <Text style={styles.secondaryButtonText}>{t.supportShare}</Text>
+            <View style={styles.btnSlot} />
           </AnimatedButton>
         </View>
 
@@ -210,128 +246,111 @@ export default function HomeScreen({ navigation, route }) {
 const getStyles = (colors, isDarkMode, glowOpacity, lang) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   particlesContainer: { position: 'absolute', width: '100%', height: '100%', overflow: 'hidden' },
-  scrollContent: { 
-    flexGrow: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    padding: 20, 
-    paddingTop: 100,  // Increased to accommodate buttons moving up
-    paddingBottom: 40 
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 100,
+    paddingBottom: 40,
   },
-  topBar: { 
+  topBar: {
     position: 'absolute',
-    top: 50,  // Position near top of screen (below status bar)
+    top: 50,
     left: 20,
     right: 20,
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     zIndex: 10,
   },
-  themeToggle: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 22, 
-    backgroundColor: colors.surface, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 2, 
-    borderColor: '#000',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  themeToggle: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.surface,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000',
   },
-  languageButton: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 22, 
-    backgroundColor: colors.surface, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 2, 
-    borderColor: '#000',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  languageButton: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.surface,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: isDarkMode ? '#fff' : '#000',
   },
   flagText: { fontSize: 24 },
-  logoContainer: { 
-    alignItems: 'center', 
-    marginBottom: 20,
-    marginTop: 40,  // Push logo down so it doesn't overlap with top buttons
-  },
+  logoContainer: { alignItems: 'center', marginBottom: 20, marginTop: 40 },
   logo: { width: 80, height: 80, marginBottom: 15 },
-  titleWrapper: { position: 'relative' },
-  title: { 
-    fontSize: 36, 
-    fontWeight: '900', 
-    color: isDarkMode ? '#fff' : '#000', 
-    letterSpacing: 6, 
-    textShadowColor: isDarkMode ? colors.primary : 'transparent', 
-    textShadowOffset: { width: 0, height: 0 }, 
-    textShadowRadius: isDarkMode ? 20 : 0 
+
+  titleWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Match the button row width so red pill lines up with buttons
+    width: 320,
+    paddingVertical: 14,
   },
-  glowOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.primary, opacity: 0.3, borderRadius: 10, transform: [{ scale: 1.2 }], zIndex: -1 },
-  tagline: { 
-    fontSize: lang === 'lt' ? 14 : 18, 
-    color: '#00ffff',
-    marginTop: 15,
-    marginBottom: 50, 
-    fontWeight: '700', 
-    letterSpacing: lang === 'lt' ? 2 : 4, 
-    textTransform: 'uppercase',
-    textShadowColor: '#00ffff',
+  // Red bg — wider than text, contained by pulseScale so never touches edges
+  titleGlowBg: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: isDarkMode ? '#fff' : '#fff',   // white on top of red glow in both modes
+    letterSpacing: 6,
+    textShadowColor: isDarkMode ? colors.primary : 'transparent',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    textShadowRadius: isDarkMode ? 20 : 0,
+    zIndex: 1,
   },
-  buttonContainer: { width: '100%', maxWidth: 320, gap: 16 },
-  mainButton: { 
-    backgroundColor: colors.primary, 
-    paddingVertical: 20, 
-    paddingHorizontal: 30, 
-    borderRadius: 16, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    position: 'relative', 
-    overflow: 'hidden', 
-    borderWidth: 2, 
-    borderColor: '#000',
+
+  // Light mode: deep visible colour; dark mode: neon cyan
+  tagline: {
+    fontSize: lang === 'lt' ? 14 : 18,
+    color: isDarkMode ? '#00ffff' : '#5b21b6',   // deep purple/indigo in light
+    marginTop: 15,
+    marginBottom: 50,
+    fontWeight: '700',
+    letterSpacing: lang === 'lt' ? 2 : 4,
+    textTransform: 'uppercase',
+    textShadowColor: isDarkMode ? '#00ffff' : 'transparent',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: isDarkMode ? 10 : 0,
+  },
+
+  buttonContainer: { width: '100%', maxWidth: 320, gap: 12 },
+  mainButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 20, paddingHorizontal: 30,
+    borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    position: 'relative', overflow: 'hidden',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: isDarkMode ? 0.4 : 0.2,
-    shadowRadius: 15,
-    elevation: 8,
+    shadowRadius: 15, elevation: 8,
   },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 3 },
   buttonIcon: { marginLeft: 12 },
-  secondaryButton: { 
-    backgroundColor: colors.surface, 
-    paddingVertical: 18, 
-    paddingHorizontal: 25, 
-    borderRadius: 16, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    borderWidth: 2, 
-    borderColor: '#000',
+  secondaryButton: {
+    backgroundColor: colors.surface,
+    paddingVertical: 15, paddingHorizontal: 25,
+    borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
-  secondaryButtonText: { 
-    color: isDarkMode ? '#fff' : '#000', 
-    fontSize: 16, 
-    fontWeight: '700', 
-    letterSpacing: 2 
+  secondaryButtonText: {
+    color: isDarkMode ? '#fff' : '#000',
+    fontSize: 14, fontWeight: '700', letterSpacing: 1,
+    textAlign: 'center',
+    flex: 1,
   },
-  buttonIconLeft: { marginRight: 12 },
-  flagInButton: { fontSize: 18, marginLeft: 12 },
-  version: { 
-    position: 'absolute', 
-    bottom: 20, 
-    color: isDarkMode ? '#fff' : '#000', 
-    fontSize: 12, 
-    letterSpacing: 2 
+  // Fixed-width slots keep text perfectly centered on every button
+  btnSlot: { width: 32, alignItems: 'center', justifyContent: 'center' },
+  slotEmoji: { fontSize: 18 },
+  version: {
+    marginTop: 24,
+    color: isDarkMode ? '#ffffff55' : '#00000055',
+    fontSize: 12, letterSpacing: 2,
   },
 });

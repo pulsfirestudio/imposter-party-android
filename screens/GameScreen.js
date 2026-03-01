@@ -1,4 +1,4 @@
-// GameScreen.js - stable full rewrite (hold to reveal, pass button, discussion transition)
+// GameScreen.js - coloured role card per player + expanding hold button
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -14,6 +14,34 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
+// ─── player card colour palette ───────────────────────────────────────────────
+const PLAYER_COLORS = [
+  { bg: "#FFE066", text: "#1a1a1a" },
+  { bg: "#6EE6FA", text: "#1a1a1a" },
+  { bg: "#B5F5A0", text: "#1a1a1a" },
+  { bg: "#FFB347", text: "#1a1a1a" },
+  { bg: "#C3A6FF", text: "#1a1a1a" },
+  { bg: "#FF8FAB", text: "#1a1a1a" },
+  { bg: "#A0E7E5", text: "#1a1a1a" },
+  { bg: "#FFC8A2", text: "#1a1a1a" },
+  { bg: "#D4F1F4", text: "#1a1a1a" },
+  { bg: "#F3C6F1", text: "#1a1a1a" },
+  { bg: "#FDFD96", text: "#1a1a1a" },
+  { bg: "#B4F8C8", text: "#1a1a1a" },
+];
+
+const shuffleColors = (count) => {
+  const pool = [...PLAYER_COLORS];
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    if (pool.length === 0) pool.push(...PLAYER_COLORS);
+    const idx = Math.floor(Math.random() * pool.length);
+    result.push(pool.splice(idx, 1)[0]);
+  }
+  return result;
+};
+
+// ─── translations ─────────────────────────────────────────────────────────────
 const translations = {
   en: {
     revealPhase: "REVEAL PHASE",
@@ -33,6 +61,7 @@ const translations = {
     playAgain: "PLAY AGAIN",
     home: "HOME",
     passTo: "Pass to",
+    startDiscussion: "Start Discussion",
     timeUp: "Time's Up!",
     fireQuestions: "Fire your questions!",
     hiddenRoles: "Hidden Roles:",
@@ -56,6 +85,7 @@ const translations = {
     playAgain: "ŽAISTI DAR KARTĄ",
     home: "PRADŽIA",
     passTo: "Perduokite",
+    startDiscussion: "Pradėti diskusiją",
     timeUp: "Laikas baigėsi!",
     fireQuestions: "Užduokite klausimus!",
     hiddenRoles: "Slaptos rolės:",
@@ -79,39 +109,37 @@ export default function GameScreen({ navigation, route }) {
 
   const t = translations[language] || translations.en;
 
-  // phases: reveal -> clues -> interrogation -> voting -> results
-  const [phase, setPhase] = useState("reveal");
+  // assign colours once on mount
+  const [playerColors] = useState(() => shuffleColors(players.length));
 
-  // REVEAL phase state
+  const [phase, setPhase] = useState("reveal");
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [isHoldingReveal, setIsHoldingReveal] = useState(false);
   const [hasRevealedThisPlayer, setHasRevealedThisPlayer] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
 
-  // timers
   const defaultTimedSeconds = useMemo(
     () => (timeLimit ? timePerPerson : 30),
     [timeLimit, timePerPerson]
   );
   const [timeLeft, setTimeLeft] = useState(defaultTimedSeconds);
-
-  // Clues
   const [clues, setClues] = useState([]);
   const [pressedButton, setPressedButton] = useState(null);
-
-  // Voting (stable)
-  const [votes, setVotes] = useState({}); // suspectIndex -> count
+  const [votes, setVotes] = useState({});
   const [voterIndex, setVoterIndex] = useState(0);
 
-  // Animations
+  // animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const holdExpandAnim = useRef(new Animated.Value(1)).current;
+  const holdExpandRef = useRef(null);
 
   const isCurrentPlayerSpy = imposterIndices.includes(currentPlayerIndex);
+  const currentColor = playerColors[currentPlayerIndex] ?? { bg: "#FFE066", text: "#1a1a1a" };
 
   const styles = useMemo(() => getStyles(colors, isDarkMode), [colors, isDarkMode]);
 
-  // Animation loops
+  // idle pulse + glow
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -129,7 +157,6 @@ export default function GameScreen({ navigation, route }) {
         }),
       ])
     );
-
     const glow = Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
@@ -146,46 +173,55 @@ export default function GameScreen({ navigation, route }) {
         }),
       ])
     );
-
     pulse.start();
     glow.start();
-
-    return () => {
-      pulse.stop();
-      glow.stop();
-    };
+    return () => { pulse.stop(); glow.stop(); };
   }, [pulseAnim, glowAnim]);
+
+  const startHoldExpand = () => {
+    holdExpandRef.current = Animated.timing(holdExpandAnim, {
+      toValue: 1.18,
+      duration: 3000,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    });
+    holdExpandRef.current.start();
+  };
+
+  const stopHoldExpand = () => {
+    if (holdExpandRef.current) holdExpandRef.current.stop();
+    Animated.spring(holdExpandAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 5,
+    }).start();
+  };
 
   const resetTimer = () => setTimeLeft(defaultTimedSeconds);
 
-  // Timer tick for clues + interrogation
   useEffect(() => {
     const isTimedPhase = phase === "clues" || phase === "interrogation";
     if (!isTimedPhase) return;
-
     if (timeLeft <= 0) {
-      if (phase === "clues") {
-        submitClue(t.timeUp);
-      } else {
-        startVoting();
-      }
+      if (phase === "clues") submitClue(t.timeUp);
+      else startVoting();
       return;
     }
-
     const id = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearTimeout(id);
-  }, [phase, timeLeft, t.timeUp]);
+  }, [phase, timeLeft]);
 
-  // -------- REVEAL FLOW --------
-
+  // ─── reveal flow ──────────────────────────────────────────────────────────
   const handleRevealPressIn = () => {
     if (isPassing) return;
     setIsHoldingReveal(true);
     setHasRevealedThisPlayer(true);
+    startHoldExpand();
   };
 
   const handleRevealPressOut = () => {
     setIsHoldingReveal(false);
+    stopHoldExpand();
   };
 
   const handlePassNext = () => {
@@ -206,7 +242,6 @@ export default function GameScreen({ navigation, route }) {
         return;
       }
 
-      // ✅ last player finished reveal -> go to Discussion screen
       setHasRevealedThisPlayer(false);
       setIsPassing(false);
 
@@ -218,31 +253,27 @@ export default function GameScreen({ navigation, route }) {
         word: secretWord,
         imposterIndices,
         spyIndex: Array.isArray(imposterIndices) ? imposterIndices[0] : null,
+        timeLimit,
+        timePerPerson,
       });
     }, 150);
   };
 
-  // -------- CLUES --------
-
+  // ─── clues ────────────────────────────────────────────────────────────────
   const submitClue = (clueText) => {
     setClues((prev) => [...prev, { player: players[currentPlayerIndex], clue: clueText }]);
-
     const isLastPlayer = currentPlayerIndex >= players.length - 1;
-
     if (!isLastPlayer) {
       setCurrentPlayerIndex((prev) => prev + 1);
       resetTimer();
       return;
     }
-
-    // Finished clue round -> interrogation
     setCurrentPlayerIndex(0);
     setPhase("interrogation");
     resetTimer();
   };
 
-  // -------- VOTING --------
-
+  // ─── voting ───────────────────────────────────────────────────────────────
   const startVoting = () => {
     setPhase("voting");
     setVotes({});
@@ -251,82 +282,89 @@ export default function GameScreen({ navigation, route }) {
 
   const voteForPlayer = (suspectIndex) => {
     if (suspectIndex === voterIndex) return;
-
     setVotes((prev) => {
       const next = { ...prev };
       next[suspectIndex] = (next[suspectIndex] || 0) + 1;
       return next;
     });
-
-    if (voterIndex >= players.length - 1) {
-      setPhase("results");
-    } else {
-      setVoterIndex((prev) => prev + 1);
-    }
+    if (voterIndex >= players.length - 1) setPhase("results");
+    else setVoterIndex((prev) => prev + 1);
   };
 
   const getWinner = () => {
     const voteValues = Object.values(votes);
     if (voteValues.length === 0) return "spies";
-
     const maxVotes = Math.max(...voteValues);
     const mostVotedKey = Object.keys(votes).find((k) => votes[k] === maxVotes);
     if (mostVotedKey == null) return "spies";
-
-    const mostVotedIndex = parseInt(mostVotedKey, 10);
-    const caughtSpy = imposterIndices.includes(mostVotedIndex);
-    return caughtSpy ? "agents" : "spies";
+    return imposterIndices.includes(parseInt(mostVotedKey, 10)) ? "agents" : "spies";
   };
 
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.75] });
+  const isLastPlayer = currentPlayerIndex >= players.length - 1;
 
-  // -------- RENDERS --------
-
+  // ─── render reveal ────────────────────────────────────────────────────────
   const renderRevealPhase = () => (
+    // Outer container is relative so the absolute card can anchor to it
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.revealPhase}</Text>
       <Text style={styles.playerName}>{players[currentPlayerIndex]}</Text>
 
-      <View style={styles.revealButtonWrapper}>
-        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-          <TouchableOpacity
-            style={[styles.revealButton, isPassing && { opacity: 0.7 }]}
-            onPressIn={handleRevealPressIn}
-            onPressOut={handleRevealPressOut}
-            activeOpacity={0.95}
-            disabled={isPassing}
+      {/* Fixed-size slot that reserves space — card floats absolutely inside */}
+      <View style={styles.cardSlot}>
+        {isHoldingReveal && (
+          <View
+            style={[styles.roleCard, { backgroundColor: currentColor.bg }]}
+            pointerEvents="none"
           >
-            {isDarkMode && <Animated.View style={[styles.revealGlow, { opacity: glowOpacity }]} />}
-            <Ionicons name="eye" size={40} color="#fff" />
-            <Text style={styles.revealText}>{t.holdToSee}</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-
-      {isHoldingReveal && (
-        <View style={styles.roleOverlay} pointerEvents="none">
-          <View style={[styles.roleCard, isCurrentPlayerSpy ? styles.spyCard : styles.agentCard]}>
-            <Text style={styles.roleTitle}>{t.yourRole}</Text>
-            <Text style={[styles.roleText, isCurrentPlayerSpy ? styles.spyText : styles.agentText]}>
+            <Text style={[styles.roleTitle, { color: currentColor.text }]}>{t.yourRole}</Text>
+            <Text style={[
+              styles.roleText,
+              isCurrentPlayerSpy ? styles.spyText : styles.agentText,
+            ]}>
               {isCurrentPlayerSpy ? t.spy : t.agent}
             </Text>
 
             {!isCurrentPlayerSpy && (
-              <View style={styles.wordBox}>
-                <Text style={styles.wordLabel}>{t.word}</Text>
-                <Text style={styles.wordText}>{secretWord}</Text>
+              <View style={[styles.wordBox, { borderColor: currentColor.text + "44" }]}>
+                <Text style={[styles.wordLabel, { color: currentColor.text }]}>{t.word}</Text>
+                <Text style={[styles.wordText, { color: currentColor.text }]}>{secretWord}</Text>
               </View>
             )}
 
             {isCurrentPlayerSpy && clueAssist && (
-              <View style={styles.hintBox}>
-                <Text style={styles.hintLabel}>Category: {category?.name ?? category ?? "-"}</Text>
+              <View style={[styles.hintBox, { borderColor: currentColor.text + "44" }]}>
+                <Text style={[styles.hintLabel, { color: currentColor.text }]}>
+                  Category: {category?.name ?? category ?? "-"}
+                </Text>
               </View>
             )}
           </View>
-        </View>
-      )}
+        )}
+      </View>
 
+      {/* ── hold to reveal circle button — position never changes ── */}
+      <View style={styles.revealButtonWrapper}>
+        <Animated.View style={{ transform: [{ scale: isHoldingReveal ? 1 : pulseAnim }] }}>
+          <Animated.View style={{ transform: [{ scale: holdExpandAnim }] }}>
+            <TouchableOpacity
+              style={[styles.revealButton, isPassing && { opacity: 0.7 }]}
+              onPressIn={handleRevealPressIn}
+              onPressOut={handleRevealPressOut}
+              activeOpacity={0.95}
+              disabled={isPassing}
+            >
+              {isDarkMode && (
+                <Animated.View style={[styles.revealGlow, { opacity: glowOpacity }]} />
+              )}
+              <Ionicons name="eye" size={40} color="#fff" />
+              <Text style={styles.revealText}>{t.holdToSee}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </View>
+
+      {/* ── pass / start discussion button ── */}
       <TouchableOpacity
         style={[
           styles.passButton,
@@ -336,14 +374,17 @@ export default function GameScreen({ navigation, route }) {
         disabled={!hasRevealedThisPlayer || isPassing || isHoldingReveal}
         activeOpacity={0.9}
       >
-        <Ionicons name="swap-horizontal" size={20} color="#fff" />
+        <Ionicons name={isLastPlayer ? "play" : "swap-horizontal"} size={20} color={isDarkMode ? "#fff" : "#fff"} />
         <Text style={styles.passButtonText}>
-          {t.passTo} {players[(currentPlayerIndex + 1) % players.length]}
+          {isLastPlayer
+            ? t.startDiscussion
+            : `${t.passTo} ${players[(currentPlayerIndex + 1) % players.length]}`}
         </Text>
       </TouchableOpacity>
     </View>
   );
 
+  // ─── render clues ─────────────────────────────────────────────────────────
   const renderCluesPhase = () => (
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.cluePhase}</Text>
@@ -392,6 +433,7 @@ export default function GameScreen({ navigation, route }) {
     </View>
   );
 
+  // ─── render interrogation ─────────────────────────────────────────────────
   const renderInterrogation = () => (
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.interrogation}</Text>
@@ -414,11 +456,11 @@ export default function GameScreen({ navigation, route }) {
     </View>
   );
 
+  // ─── render voting ────────────────────────────────────────────────────────
   const renderVoting = () => (
     <View style={styles.phaseContainer}>
       <Text style={styles.phaseTitle}>{t.voting}</Text>
       <Text style={styles.votingText}>{t.whoIsSpy}</Text>
-
       <Text style={styles.voterName}>
         {players[voterIndex]} {t.voterVotes}
       </Text>
@@ -426,7 +468,6 @@ export default function GameScreen({ navigation, route }) {
       <View style={styles.votingGrid}>
         {players.map((player, index) => {
           if (index === voterIndex) return null;
-
           return (
             <TouchableOpacity
               key={index}
@@ -447,9 +488,9 @@ export default function GameScreen({ navigation, route }) {
     </View>
   );
 
+  // ─── render results ───────────────────────────────────────────────────────
   const renderResults = () => {
     const winner = getWinner();
-
     return (
       <View style={styles.phaseContainer}>
         <Text style={styles.phaseTitle}>{t.results}</Text>
@@ -460,10 +501,9 @@ export default function GameScreen({ navigation, route }) {
           </Text>
         </View>
 
-        <View style={styles.revealCard}>
+        <View style={styles.revealResultCard}>
           <Text style={styles.revealTitle}>{t.word}</Text>
           <Text style={styles.revealWord}>{secretWord}</Text>
-
           <Text style={styles.spiesTitle}>{t.hiddenRoles}</Text>
           {imposterIndices.map((idx) => (
             <Text key={idx} style={styles.spyName}>🕵️ {players[idx]}</Text>
@@ -478,7 +518,6 @@ export default function GameScreen({ navigation, route }) {
           >
             <Text style={styles.resultButtonText}>{t.playAgain}</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.resultButton, styles.homeButton]}
             onPress={() => navigation.navigate("Home", { language })}
@@ -508,32 +547,104 @@ export default function GameScreen({ navigation, route }) {
   );
 }
 
-const getStyles = (colors, isDarkMode) =>
-  StyleSheet.create({
+// ─── styles ───────────────────────────────────────────────────────────────────
+const getStyles = (colors, isDarkMode) => {
+  const border = isDarkMode ? "#ffffff" : "#000000";
+
+  return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     scrollContent: { flexGrow: 1, padding: 20 },
+
     phaseContainer: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
       paddingTop: 40,
-      paddingBottom: 30,
+      paddingBottom: 100, // space for absolutely-positioned pass button
     },
     phaseTitle: {
       fontSize: 16,
       fontWeight: "800",
-      color: isDarkMode ? "#fff" : "#000",
+      color: colors.text,
       letterSpacing: 4,
       marginBottom: 20,
     },
     playerName: {
       fontSize: 26,
       fontWeight: "800",
-      color: isDarkMode ? "#fff" : "#000",
+      color: colors.text,
       marginBottom: 25,
     },
 
-    revealButtonWrapper: { zIndex: 2 },
+    // ── card slot: fixed height so the button never moves ──
+    cardSlot: {
+      width: "100%",
+      height: 220,         // tall enough for the card; empty space when hidden
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 20,
+    },
+
+    // ── coloured role card ──
+    roleCard: {
+      padding: 28,
+      borderRadius: 20,
+      alignItems: "center",
+      width: "90%",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    roleTitle: {
+      fontSize: 11,
+      marginBottom: 10,
+      letterSpacing: 3,
+      fontWeight: "700",
+    },
+    roleText: {
+      fontSize: 22,
+      fontWeight: "800",
+      marginBottom: 12,
+      letterSpacing: 2,
+    },
+    agentText: { color: "#00aa55" },
+    spyText: { color: "#cc0000" },
+
+    wordBox: {
+      backgroundColor: "rgba(255,255,255,0.4)",
+      padding: 18,
+      borderRadius: 14,
+      alignItems: "center",
+      borderWidth: 2,
+    },
+    wordLabel: {
+      fontSize: 12,
+      marginBottom: 5,
+      letterSpacing: 2,
+      fontWeight: "600",
+    },
+    wordText: {
+      fontSize: 28,
+      fontWeight: "900",
+      letterSpacing: 2,
+    },
+
+    hintBox: {
+      padding: 14,
+      borderRadius: 12,
+      marginTop: 10,
+      borderWidth: 2,
+      backgroundColor: "rgba(255,255,255,0.3)",
+    },
+    hintLabel: {
+      fontWeight: "700",
+      fontSize: 13,
+    },
+
+    // ── hold button ──
+    revealButtonWrapper: { zIndex: 2, marginBottom: 20 },
     revealButton: {
       backgroundColor: colors.primary,
       width: 180,
@@ -544,7 +655,7 @@ const getStyles = (colors, isDarkMode) =>
       position: "relative",
       overflow: "hidden",
       borderWidth: 2,
-      borderColor: "#000",
+      borderColor: border,
     },
     revealGlow: {
       position: "absolute",
@@ -560,80 +671,7 @@ const getStyles = (colors, isDarkMode) =>
       letterSpacing: 1,
     },
 
-    roleOverlay: {
-      position: "absolute",
-      top: 40,
-      left: 20,
-      right: 20,
-      alignItems: "center",
-      zIndex: 3,
-    },
-    roleCard: {
-      marginTop: 22,
-      padding: 30,
-      borderRadius: 20,
-      alignItems: "center",
-      borderWidth: 2,
-      minWidth: 280,
-      backgroundColor: colors.surface,
-    },
-    agentCard: {
-      borderColor: isDarkMode ? colors.success : "#000",
-    },
-    spyCard: {
-      borderColor: isDarkMode ? colors.error : "#000",
-    },
-    roleTitle: {
-      fontSize: 11,
-      color: isDarkMode ? "#fff" : "#000",
-      marginBottom: 10,
-      letterSpacing: 3,
-      fontWeight: "700",
-    },
-    roleText: {
-      fontSize: 22,
-      fontWeight: "800",
-      marginBottom: 8,
-      letterSpacing: 2,
-    },
-    agentText: { color: "#00ff88" },
-    spyText: { color: "#ff1a1a" },
-
-    wordBox: {
-      backgroundColor: colors.background,
-      padding: 18,
-      borderRadius: 14,
-      alignItems: "center",
-      borderWidth: 2,
-      borderColor: "#000",
-    },
-    wordLabel: {
-      fontSize: 12,
-      color: isDarkMode ? "#fff" : "#000",
-      marginBottom: 5,
-      letterSpacing: 2,
-    },
-    wordText: {
-      fontSize: 36,
-      fontWeight: "900",
-      letterSpacing: 2,
-      color: isDarkMode ? "#fff" : "#000",
-    },
-
-    hintBox: {
-      backgroundColor: (colors.accent || "#fff") + "20",
-      padding: 14,
-      borderRadius: 12,
-      marginTop: 10,
-      borderWidth: 2,
-      borderColor: colors.accent || "#000",
-    },
-    hintLabel: {
-      color: isDarkMode ? "#fff" : "#000",
-      fontWeight: "700",
-      fontSize: 13,
-    },
-
+    // ── pass button ──
     passButton: {
       position: "absolute",
       bottom: 30,
@@ -647,7 +685,7 @@ const getStyles = (colors, isDarkMode) =>
       alignItems: "center",
       gap: 10,
       borderWidth: 2,
-      borderColor: "#000",
+      borderColor: border,
     },
     passButtonDisabled: { opacity: 0.5 },
     passButtonText: {
@@ -657,6 +695,41 @@ const getStyles = (colors, isDarkMode) =>
       letterSpacing: 1,
     },
 
+    // ── timer ──
+    timerContainer: { alignItems: "center", marginBottom: 30 },
+    timerText: {
+      fontSize: 72,
+      fontWeight: "900",
+      color: colors.text,
+      marginBottom: 20,
+    },
+    timerWarning: { color: "#ff1a1a" },
+    timerBar: {
+      width: 250,
+      height: 6,
+      backgroundColor: isDarkMode ? "#333" : "#cccccc",
+      borderRadius: 3,
+      overflow: "hidden",
+    },
+    timerFill: { height: "100%", backgroundColor: colors.primary },
+    timerFillWarning: { backgroundColor: "#ff1a1a" },
+    timerContainerSmall: { width: "100%", marginBottom: 20, alignItems: "center" },
+    timerTextSmall: {
+      fontSize: 24,
+      fontWeight: "800",
+      color: colors.text,
+      marginBottom: 10,
+    },
+    timerBarSmall: {
+      width: "80%",
+      height: 6,
+      backgroundColor: isDarkMode ? "#333" : "#cccccc",
+      borderRadius: 3,
+      overflow: "hidden",
+    },
+    timerFillSmall: { height: "100%", backgroundColor: colors.primary },
+
+    // ── clues ──
     cluesList: { width: "100%", marginBottom: 25 },
     clueItem: {
       backgroundColor: colors.surface,
@@ -664,21 +737,21 @@ const getStyles = (colors, isDarkMode) =>
       borderRadius: 14,
       marginBottom: 10,
       borderWidth: 2,
-      borderColor: "#000",
+      borderColor: border,
     },
     cluePlayer: {
-      color: isDarkMode ? "#fff" : "#000",
+      color: colors.text,
       fontWeight: "700",
       marginBottom: 5,
       fontSize: 13,
     },
     clueText: {
-      color: isDarkMode ? "#fff" : "#000",
+      color: colors.text,
       fontSize: 18,
       fontStyle: "italic",
     },
     clueLabel: {
-      color: isDarkMode ? "#fff" : "#000",
+      color: colors.text,
       marginBottom: 20,
       fontSize: 14,
       letterSpacing: 2,
@@ -695,50 +768,20 @@ const getStyles = (colors, isDarkMode) =>
       paddingHorizontal: 24,
       borderRadius: 25,
       borderWidth: 2,
-      borderColor: "#000",
-      transform: [{ scale: 1 }],
+      borderColor: border,
     },
     clueButtonPressed: { transform: [{ scale: 0.95 }] },
     clueButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
-    timerContainer: { alignItems: "center", marginBottom: 30 },
-    timerText: {
-      fontSize: 72,
-      fontWeight: "900",
-      color: isDarkMode ? "#fff" : "#000",
-      marginBottom: 20,
+    interrogationText: {
+      color: colors.text,
+      fontSize: 18,
+      fontStyle: "italic",
     },
-    timerWarning: { color: "#ff1a1a" },
-    timerBar: {
-      width: 250,
-      height: 6,
-      backgroundColor: isDarkMode ? colors.border : "#cccccc",
-      borderRadius: 3,
-      overflow: "hidden",
-    },
-    timerFill: { height: "100%", backgroundColor: colors.primary },
-    timerFillWarning: { backgroundColor: "#ff1a1a" },
 
-    timerContainerSmall: { width: "100%", marginBottom: 20, alignItems: "center" },
-    timerTextSmall: {
-      fontSize: 24,
-      fontWeight: "800",
-      color: isDarkMode ? "#fff" : "#000",
-      marginBottom: 10,
-    },
-    timerBarSmall: {
-      width: "80%",
-      height: 6,
-      backgroundColor: isDarkMode ? colors.border : "#cccccc",
-      borderRadius: 3,
-      overflow: "hidden",
-    },
-    timerFillSmall: { height: "100%", backgroundColor: colors.primary },
-
-    interrogationText: { color: isDarkMode ? "#fff" : "#000", fontSize: 18, fontStyle: "italic" },
-
-    votingText: { fontSize: 18, color: isDarkMode ? "#fff" : "#000", marginBottom: 15 },
-    voterName: { fontSize: 14, color: isDarkMode ? "#fff" : "#000", marginBottom: 25 },
+    // ── voting ──
+    votingText: { fontSize: 18, color: colors.text, marginBottom: 15 },
+    voterName: { fontSize: 14, color: colors.text, marginBottom: 25 },
     votingGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 12 },
     voteButton: {
       backgroundColor: colors.surface,
@@ -746,36 +789,49 @@ const getStyles = (colors, isDarkMode) =>
       paddingHorizontal: 28,
       borderRadius: 14,
       borderWidth: 2,
-      borderColor: "#000",
+      borderColor: border,
       minWidth: 120,
       alignItems: "center",
-      transform: [{ scale: 1 }],
     },
     voteButtonPressed: { transform: [{ scale: 0.97 }], borderColor: colors.primary },
-    voteButtonText: { color: isDarkMode ? "#fff" : "#000", fontWeight: "700", fontSize: 16 },
+    voteButtonText: { color: colors.text, fontWeight: "700", fontSize: 16 },
 
+    // ── results ──
     winnerCard: { padding: 30, borderRadius: 20, marginBottom: 25, borderWidth: 2 },
     agentWinCard: { backgroundColor: "#00ff88" + "15", borderColor: "#00ff88" },
     spyWinCard: { backgroundColor: "#ff1a1a" + "15", borderColor: "#ff1a1a" },
     winnerText: { fontSize: 24, fontWeight: "900", textAlign: "center", letterSpacing: 3 },
     agentWinText: { color: "#00ff88" },
     spyWinText: { color: "#ff1a1a" },
-
-    revealCard: {
+    revealResultCard: {
       backgroundColor: colors.surface,
       padding: 30,
       borderRadius: 20,
       alignItems: "center",
       marginBottom: 25,
       borderWidth: 2,
-      borderColor: "#000",
+      borderColor: border,
       width: "100%",
     },
-    revealTitle: { color: isDarkMode ? "#fff" : "#000", fontSize: 13, marginBottom: 10, letterSpacing: 2 },
-    revealWord: { color: isDarkMode ? "#fff" : "#000", fontSize: 32, fontWeight: "800", marginBottom: 20 },
-    spiesTitle: { color: isDarkMode ? "#fff" : "#000", fontSize: 13, marginBottom: 10, letterSpacing: 2 },
+    revealTitle: {
+      color: colors.text,
+      fontSize: 13,
+      marginBottom: 10,
+      letterSpacing: 2,
+    },
+    revealWord: {
+      color: colors.text,
+      fontSize: 32,
+      fontWeight: "800",
+      marginBottom: 20,
+    },
+    spiesTitle: {
+      color: colors.text,
+      fontSize: 13,
+      marginBottom: 10,
+      letterSpacing: 2,
+    },
     spyName: { color: "#ff1a1a", fontSize: 18, fontWeight: "700" },
-
     resultButtons: { flexDirection: "row", gap: 15 },
     resultButton: {
       backgroundColor: colors.primary,
@@ -783,13 +839,18 @@ const getStyles = (colors, isDarkMode) =>
       paddingHorizontal: 28,
       borderRadius: 14,
       borderWidth: 2,
-      borderColor: "#000",
+      borderColor: border,
     },
-    homeButton: { backgroundColor: colors.surface, borderWidth: 2, borderColor: "#000" },
+    homeButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: border,
+    },
     resultButtonText: {
-      color: isDarkMode ? "#fff" : "#000",
+      color: colors.text,
       fontWeight: "800",
       fontSize: 14,
       letterSpacing: 2,
     },
   });
+};
