@@ -1,21 +1,108 @@
-# Imposter Party (Android)
+# 🕵️ Spy Room
 
-A local multiplayer party game built with React Native (Expo). Designed for 3–12 players with a fast pass-and-play reveal flow.
+> **Lies. Clues. Chaos.**
 
-## Features
-- 3–12 player local gameplay
-- Imposter / word reveal mechanic
-- Multiple screens: lobby, how-to-play, language selection
-- Light & dark themes
-- Custom categories
+Spy Room is a social deduction party game for 3–12 players. One or more players are secretly assigned as spies — everyone else knows the secret word. Can the agents expose the spy before they blend in?
 
-## Tech Stack
-- React Native
-- Expo
-- JavaScript
+---
 
-## Getting Started
+## 📱 Download
+
+[![Google Play](https://img.shields.io/badge/Google_Play-Coming_Soon-green?style=for-the-badge&logo=google-play)](https://play.google.com)
+
+---
+
+## 🎮 How to Play
+
+1. **One device, pass around** — no app needed for other players
+2. Each player secretly views their role (Agent or Spy) and the secret word
+3. Everyone takes turns giving one-word clues about the secret word
+4. **Agents** try to expose the spy through discussion
+5. **The Spy** tries to blend in without knowing the word
+6. Vote to eliminate — if the spy is caught, agents win. If not, the spy wins!
+
+---
+
+## ✨ Features
+
+- 🎲 **5 free categories** — Random, Everyday Objects, Famous People, Animals, Irish Slang
+- 💰 **6 premium categories** — Professions, Gen Z Mode, Adult Party Mode, Movies & TV, Fantasy & Mythology, Famous Songs
+- ⏱️ **Timer mode** — 15 seconds per player to keep things tense
+- 🕵️ **Multiple spies** — 1, 2 or 3 hidden roles
+- 🎯 **Clue Assist** — gives the spy a category hint
+- 💥 **Chaos Round** — random chance all players become spies
+- 🔊 **Sound effects** — countdown beeps, buzzer, spy reveal sting
+- 🌙 **Dark & Light mode**
+- 🇬🇧 🇱🇹 **English & Lithuanian**
+- 📵 **No internet required** — fully offline
+
+---
+
+## 🛠️ Built With
+
+- [React Native](https://reactnative.dev/) + [Expo](https://expo.dev/)
+- [React Navigation](https://reactnavigation.org/)
+- [expo-av](https://docs.expo.dev/versions/latest/sdk/av/) — sound effects
+- [expo-haptics](https://docs.expo.dev/versions/latest/sdk/haptics/) — haptic feedback
+
+---
+
+## 📁 Project Structure
+
+```
+ImposterGame/
+├── assets/
+│   ├── sounds/          # WAV/MP3 sound effects
+│   └── logo.png         # App logo
+├── components/          # Reusable UI components
+├── context/
+│   ├── ThemeContext.js   # Dark/light mode
+│   └── SettingsContext.js# Sound & vibration settings
+├── screens/
+│   ├── HomeScreen.js
+│   ├── CreateRoomScreen.js
+│   ├── GameScreen.js
+│   ├── DiscussionScreen.js
+│   ├── RevealResultScreen.js
+│   ├── HowToPlayScreen.js
+│   ├── SettingsScreen.js
+│   └── SelectLanguageScreen.js
+├── utils/
+│   ├── SoundManager.js  # Audio playback
+│   └── HapticsManager.js# Vibration
+└── App.js
+```
+
+---
+
+## 🚀 Getting Started
+
 ```bash
+# Install dependencies
 npm install
+
+# Start Expo
 npx expo start
-Last updated: 2026-02-27
+
+# Run on Android
+npx expo run:android
+```
+
+---
+
+## 📄 Legal
+
+- [Privacy Policy](./privacy-policy.md)
+- [Terms of Use](./terms-of-use.md)
+
+---
+
+## 👨‍💻 Developer
+
+**Pulsefire Studio**  
+📧 pulsfirestudio@gmail.com  
+🇮🇪 Ireland
+
+---
+
+*Made with ❤️ for party nights*
